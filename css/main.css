@@ -1,0 +1,111 @@
+@charset "UTF-8";
+
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden;
+}
+
+.fondo {
+    width: 100%;
+    height: 100vh;
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: -1;
+}
+
+.fondo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    object-position: center; 
+}
+
+.titulo {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1;
+    top: -60px;
+}
+
+.titulo img {
+    width: 380px;
+    height: auto;
+    display: block;
+}
+
+.menu-container {
+    position: absolute;
+    top: 180px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1;
+}
+
+.menu-box {
+    position: relative;
+    width: 400px;
+                padding: 150px 35px 20px;
+    background-color: #000000;
+    border-radius: 20px;
+    box-shadow: 0 40px 80px rgba(0, 0, 0, 0.9),
+                0 12px 40px rgba(0, 0, 0, 0.8);
+    text-align: center;
+}
+
+.menu-icon {
+    width: 180px;
+    height: auto;
+    position: absolute;
+    top: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: block;
+}
+
+.menu-buttons {
+    margin-top: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.game-btn {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 12px;
+    padding: 12px;
+    background: black;
+    color: white;
+    border: 2px solid white;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.game-btn:hover {
+    background: white;
+    color: black;
+    box-shadow: 0 0 15px white;
+}
+
+/* ============== UTILIDADES ===============*/
+
+/*  ================== FOOTER ================== */
+
+/* ================== PÁGINA INICIO ================== */
+
+/* ================== NAVEGADOR ================== */
+
+/* ================== CONTENIDO DEL INICIO ================== */
+
+/* ================== CELULARES (≤576px) ================== */
+
+/* ================== TABLETS CHICAS ================== */
+
+/* ================== TABLETS GRANDES ================== */
