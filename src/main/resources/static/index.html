@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sky & Sea - Demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    #tablero {
+      width: 300px; height: 300px;
+      border: 2px solid #333;
+      position: relative;
+      margin-top: 10px;
+    }
+    #dron {
+      width: 18px; height: 18px;
+      position: absolute;
+      background: black;
+      border-radius: 4px;
+      transform: translate(-50%, -50%);
+    }
+    button { margin-right: 8px; margin-top: 10px; }
+    .fila { margin-top: 8px; }
+    #panelJuego { display: none; } /* se muestra cuando el jugador hizo join */
+    #msg { margin-top: 10px; }
+    input { padding: 6px; }
+  </style>
+</head>
+<body>
+  <h1>Sky & Sea - Demo</h1>
+
+  <!-- Panel de ingreso -->
+  <div id="panelJoin" class="fila">
+    <label><strong>Nombre:</strong></label>
+    <input id="nombreInput" type="text" placeholder="Ej: Ana" maxlength="20" />
+    <button id="btnJoin">Entrar</button>
+    <button id="btnSalir">Salir (borrar sesión)</button>
+    <div id="msg"></div>
+  </div>
+
+  <!-- Panel de juego -->
+  <div id="panelJuego">
+    <div class="fila">
+      <strong>Estado partida:</strong> <span id="estadoPartida">-</span> |
+      <strong>Turno de:</strong> <span id="turnoDe">-</span>
+    </div>
+
+    <div class="fila">
+      <strong>Equipo:</strong> <span id="equipo">-</span> |
+      <strong>Munición:</strong> <span id="municion">-</span> |
+      <strong>Último disparo:</strong> <span id="ultimoDisparo">-</span>
+    </div>
+
+    <div id="tablero">
+      <div id="dron"></div>
+    </div>
+
+    <div class="fila">
+      <button id="btnState">Actualizar estado</button>
+      <button id="btnFire">Disparar</button>
+      <button id="btnReset">Reset</button>
+      <button id="btnEndTurn">Terminar turno</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
