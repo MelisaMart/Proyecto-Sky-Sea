@@ -4,48 +4,104 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sky & Sea</title>
-  <meta name="description" content="Descubrí rutinas, consejos y planes de entrenamiento diseñados para mujeres. StrongHer: tu espacio fitness online.">
-
-  <!-- Bootstrap -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <meta name="description" content="Pantalla de inicio del juego Sky & Sea.">
 
   <!-- CSS -->
-   <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/main.css">
 
-  <!-- Fonts -->
-   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <!-- Fuente para la interfaz -->
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 </head>
 
 <body>
-     <div class="fondo"><img src="Imagenes/Fondo/FondoPantallaDeInicio.jpg" alt="Fondo"></div>
-    <!-- ====== HEADER ====== -->
-    <header>
-        <div class="titulo"><img src="Imagenes/Logo/LetrasSinfondo.png" alt="LogoSky&Sea"></div>
-    </header>
-     <div class="menu-container">
+  <!-- Fondo visual de la pantalla de inicio -->
+  <div class="fondo">
+    <img src="Imagenes/Fondo/FondoPantallaDeInicio.jpg" alt="Fondo">
+  </div>
+
+  <!-- Encabezado con logotipo principal -->
+  <header>
+    <div class="titulo">
+      <img src="Imagenes/Logo/LetrasSinfondo.png" alt="Logo Sky & Sea">
+    </div>
+  </header>
+
+  <!-- Menú principal de navegación del juego -->
+  <div class="menu-container">
     <div class="menu-box">
-        <img src="Imagenes/Logo/SoloImagenSinFondo.png" alt="Logo" class="menu-icon">
-    <div class="menu-buttons">
-    <button class="game-btn">START</button>
-    <button class="game-btn">REANUDAR</button>
-    <button class="game-btn">ELIMINAR PARTIDA</button>
-</div>
+      <img src="Imagenes/Logo/SoloImagenSinFondo.png" alt="Logo" class="menu-icon">
+      <div class="menu-buttons">
+        <a href="Paginas/start.html" class="game-btn">START</a>
+        <a href="Paginas/reanudarPartida.html" class="game-btn">REANUDAR</a>
+        <a id="btnEliminar" href="Paginas/eliminarPartida.html" class="game-btn">ELIMINAR PARTIDA</a>
+      </div>
     </div>
   </div>
 
-    <!-- ====== CONTENIDO DEL INICIO ====== -->
-    
+  <!-- Contenido principal reservado para futuras secciones -->
+  <main></main>
 
-  <main>
-    
-  </main>
+  <!-- Pie de página reservado -->
+  <footer class="footer"></footer>
 
- <!-- ====== FOOTER ====== -->
-  <footer class="footer">
-  </footer>
+  <!-- Modal de confirmación para eliminar partida -->
+  <div id="modalEliminar" class="modal-overlay" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <p class="eliminar">¿Estás seguro que quieres eliminar la partida?</p>
+      <div class="modal-actions">
+        <button id="confirmarEliminar" class="game-btn">Aceptar</button>
+        <button id="cancelarEliminar" class="game-btn">Cancelar</button>
+      </div>
+    </div>
+  </div>
 
+  <script>
+    // Referencias a elementos del modal de eliminación
+    const btnEliminar = document.getElementById('btnEliminar');
+    const modalEliminar = document.getElementById('modalEliminar');
+    const confirmarEliminar = document.getElementById('confirmarEliminar');
+    const cancelarEliminar = document.getElementById('cancelarEliminar');
 
-  <!-- JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+    // Inicializa la interacción del modal solo si todos los elementos existen
+    if (btnEliminar && modalEliminar && confirmarEliminar && cancelarEliminar) {
+      // Abre el modal y guarda el destino real del enlace
+      btnEliminar.addEventListener('click', function (evento) {
+        evento.preventDefault();
+        modalEliminar.setAttribute('aria-hidden', 'false');
+        modalEliminar.classList.add('activo');
+        modalEliminar.dataset.href = this.getAttribute('href');
+      });
+
+      // Cierra el modal y limpia el destino temporal guardado
+      function cerrarModal() {
+        modalEliminar.setAttribute('aria-hidden', 'true');
+        modalEliminar.classList.remove('activo');
+        delete modalEliminar.dataset.href;
+      }
+
+      // Cierra el modal al pulsar el botón cancelar
+      cancelarEliminar.addEventListener('click', cerrarModal);
+
+      // Cierra el modal al hacer clic fuera de la caja de confirmación
+      modalEliminar.addEventListener('click', (evento) => {
+        if (evento.target === modalEliminar) {
+          cerrarModal();
+        }
+      });
+
+      // Cierra el modal con la tecla Escape
+      document.addEventListener('keydown', (evento) => {
+        if (evento.key === 'Escape') {
+          cerrarModal();
+        }
+      });
+
+      // Confirma la eliminación y redirige a la página correspondiente
+      confirmarEliminar.addEventListener('click', () => {
+        const href = modalEliminar.dataset.href || 'Paginas/eliminarPartida.html';
+        window.location.href = href;
+      });
+    }
+  </script>
 </body>
 </html>

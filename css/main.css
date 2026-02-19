@@ -1,6 +1,10 @@
 @charset "UTF-8";
 
-html, body {
+/* ================== BASE GLOBAL ================== */
+
+/* Reinicio básico y tamaño de pantalla completo */
+html,
+body {
     margin: 0;
     padding: 0;
     width: 100%;
@@ -8,104 +12,239 @@ html, body {
     overflow-x: hidden;
 }
 
+/* Estructura vertical principal de cada página */
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* Zona principal centrada para el contenido */
+main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ================== PÁGINA INICIO ================== */
+
+/* Fondo fijo de la pantalla de inicio */
 .fondo {
-    width: 100%;
-    height: 100vh;
-    display: block;
     position: fixed;
     top: 0;
     left: 0;
     z-index: -1;
+    width: 100%;
+    height: 100vh;
 }
 
+/* Ajuste de la imagen de fondo al viewport */
 .fondo img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
     display: block;
-    object-position: center; 
+    object-fit: cover;
+    object-position: center;
 }
 
+/* Contenedor del logo principal */
 .titulo {
     position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 1;
     top: -60px;
+    left: 50%;
+    z-index: 1;
+    transform: translateX(-50%);
 }
 
+/* Tamaño del logo principal */
 .titulo img {
     width: 380px;
     height: auto;
     display: block;
 }
 
+/* Contenedor general del menú */
 .menu-container {
     position: absolute;
     top: 180px;
     left: 50%;
-    transform: translateX(-50%);
     z-index: 1;
+    transform: translateX(-50%);
 }
 
+/* Caja visual del menú */
 .menu-box {
     position: relative;
-    width: 400px;
-                padding: 150px 35px 20px;
+    width: 360px;
+    padding: 150px 35px 20px;
+    text-align: center;
     background-color: #000000;
     border-radius: 20px;
-    box-shadow: 0 40px 80px rgba(0, 0, 0, 0.9),
-                0 12px 40px rgba(0, 0, 0, 0.8);
-    text-align: center;
+    box-shadow:
+        0 40px 80px rgba(0, 0, 0, 0.9),
+        0 12px 40px rgba(0, 0, 0, 0.8);
 }
 
+/* Ícono del menú sobre la caja */
 .menu-icon {
-    width: 180px;
-    height: auto;
     position: absolute;
     top: 5px;
     left: 50%;
-    transform: translateX(-50%);
+    width: 180px;
+    height: auto;
     display: block;
+    transform: translateX(-50%);
 }
 
+/* Grupo vertical de botones del menú */
 .menu-buttons {
-    margin-top: 30px;
     display: flex;
     flex-direction: column;
     gap: 15px;
+    margin-top: 30px;
 }
 
+/* Botón reutilizable para acciones del juego */
 .game-btn {
+    display: inline-block;
+    padding: 12px;
     font-family: 'Press Start 2P', cursive;
     font-size: 12px;
-    padding: 12px;
-    background: black;
-    color: white;
-    border: 2px solid white;
+    color: #ffffff;
+    text-decoration: none;
+    background: #000000;
+    border: 2px solid #ffffff;
     border-radius: 30px;
     cursor: pointer;
     transition: all 0.3s ease;
 }
 
+/* Efecto hover general para botones */
 .game-btn:hover {
-    background: white;
-    color: black;
-    box-shadow: 0 0 15px white;
+    color: #000000;
+    text-decoration: none;
+    background: #ffffff;
+    box-shadow: 0 0 15px #ffffff;
 }
 
-/* ============== UTILIDADES ===============*/
+/* Capa oscura que cubre toda la pantalla al abrir el modal */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.6);
+}
 
-/*  ================== FOOTER ================== */
+/* Estado visible del modal */
+.modal-overlay.activo {
+    display: flex;
+}
 
-/* ================== PÁGINA INICIO ================== */
+/* Caja central del modal de confirmación */
+.modal-box {
+    width: 360px;
+    max-width: 90%;
+    padding: 20px;
+    text-align: center;
+    color: #ffffff;
+    background: #000000;
+    border: 2px solid #ffffff;
+    border-radius: 12px;
+}
 
-/* ================== NAVEGADOR ================== */
+/* Texto principal del mensaje de confirmación */
+.eliminar {
+    margin-bottom: 18px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #ffffff;
+}
 
-/* ================== CONTENIDO DEL INICIO ================== */
+/* Fila de acciones del modal */
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 16px;
+}
 
-/* ================== CELULARES (≤576px) ================== */
+/* Ajuste de tamaño de botones en el modal */
+.modal-actions .game-btn {
+    padding: 10px 14px;
+    font-size: 12px;
+    border-radius: 8px;
+}
 
-/* ================== TABLETS CHICAS ================== */
+/* Hover específico del botón de confirmación */
+#confirmarEliminar:hover {
+    color: #ffffff;
+    background: #0d6efd;
+    box-shadow: 0 0 14px #0d6efd;
+}
 
-/* ================== TABLETS GRANDES ================== */
+/* Hover específico del botón de cancelación */
+#cancelarEliminar:hover {
+    color: #ffffff;
+    background: #fd7e14;
+    box-shadow: 0 0 14px #fd7e14;
+}
+
+/* ================== PÁGINA START ================== */
+
+/* Fondo fijo de la pantalla de juego */
+.fondoStart {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: -1;
+    width: 100%;
+    height: 100vh;
+}
+
+/* Ajuste de imagen de fondo de la pantalla start */
+.fondoStart img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    object-position: center;
+}
+
+/* Posición del logo en pantalla start */
+.titulostart {
+    position: absolute;
+    top: -65px;
+    left: 5px;
+    z-index: 1;
+}
+
+/* Tamaño del logo en pantalla start */
+.titulostart img {
+    width: 200px;
+    height: auto;
+    display: block;
+}
+
+/* Cuadrícula principal de juego (20x10 celdas) */
+.cuadricula {
+    display: grid;
+    grid-template-columns: repeat(20, 1fr);
+    grid-auto-rows: calc(800px / 20);
+    gap: 0;
+    width: 800px;
+    margin: 40px auto;
+    justify-content: center;
+}
+
+/* Celda individual de la cuadrícula */
+.celda {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    border: 1px solid #ffffff;
+}

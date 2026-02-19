@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sky & Sea</title>
+  <meta name="description" content="Pantalla de juego de Sky & Sea.">
+
+  <!-- Estilos globales del proyecto -->
+  <link rel="stylesheet" href="../css/main.css">
+
+  <!-- Fuente retro para la interfaz -->
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <!-- Fondo visual de la pantalla de juego -->
+  <div class="fondoStart">
+    <img src="../Imagenes/Fondo/FondoVistaDeArriba.png" alt="Fondo de la partida">
+  </div>
+
+  <!-- Encabezado con logotipo principal -->
+  <header>
+    <div class="titulostart">
+      <img src="../Imagenes/Logo/LetrasSinfondo.png" alt="Logo Sky & Sea">
+    </div>
+  </header>
+
+  <!-- Contenido principal con la cuadrícula del juego -->
+  <main>
+    <div class="cuadricula" id="grid"></div>
+  </main>
+
+  <!-- Pie de página reservado -->
+  <footer class="footer"></footer>
+
+  <script>
+    // Genera una cuadrícula de 20x10 (200 celdas) dentro del contenedor principal
+    (function () {
+      const grid = document.getElementById('grid');
+      if (!grid) {
+        return;
+      }
+
+      const totalCeldas = 200;
+
+      for (let indice = 0; indice < totalCeldas; indice++) {
+        const celda = document.createElement('div');
+        celda.className = 'celda';
+        grid.appendChild(celda);
+      }
+    })();
+  </script>
+</body>
+</html>
