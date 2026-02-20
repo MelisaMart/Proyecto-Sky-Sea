@@ -230,13 +230,13 @@ main {
     display: block;
 }
 
-/* Cuadrícula principal de juego (20x10 celdas) */
+/* Cuadrícula principal de juego */
 .cuadricula {
     display: grid;
     grid-template-columns: repeat(20, 1fr);
-    grid-auto-rows: calc(800px / 20);
+    grid-auto-rows: calc(500px / 10);
     gap: 0;
-    width: 800px;
+    width: 1000px;
     margin: 40px auto;
     justify-content: center;
 }
@@ -247,4 +247,293 @@ main {
     height: 100%;
     box-sizing: border-box;
     border: 1px solid #ffffff;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+}
+
+/* Imagen de formación dentro de una celda */
+.elemento-formacion {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+    object-position: center;
+    display: block;
+}
+
+/* Celda ocupada por un puerto/base */
+.celda.ocupada-puerto {
+    background-color: rgba(4, 37, 107, 0.808);
+}
+
+/* Celda ocupada por un dron */
+.celda.ocupada-dron {
+    background-color: rgba(4, 117, 34, 0.836);
+}
+
+/* Rotación para drones que apuntan hacia la derecha */
+.dron-derecha {
+    transform: rotate(90deg);
+}
+
+/* Imagen del porta naval que ocupa múltiples celdas */
+.porta-naval-completo {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+    display: block;
+    transform: rotate(90deg);
+    z-index: 10;
+}
+
+/* Porta naval extendido sobre 7 celdas */
+.porta-naval-extendido {
+    position: absolute;
+    width: 350px;  
+    height: 45px;
+    object-fit: contain;
+    z-index: 10;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+/* Porta naval que ocupa múltiples celdas */
+.porta-naval-grid {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    z-index: 10;
+}
+
+/* Porta naval completo 7 celdas */
+.porta-naval-completo-7-celdas {
+    position: absolute;
+    width: 350px;  
+    height: 200px;
+    object-fit: contain;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%) scaleX(-1);
+    z-index: 10;
+}
+/* Porta naval vertical 7 celdas */
+.porta-naval-vertical-7-celdas {
+    position: absolute;
+    width: 350px;
+    height: 350px;  
+    object-fit: contain;
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%) scaleX(-1) rotate(270deg);
+    z-index: 10;
+}
+
+/* Porta aéreo que ocupa 2x5 celdas */
+.porta-aereo-2x5 {
+    position: absolute;
+    width: 340px;
+    height: 140px;
+    object-fit: contain;
+    object-position: center;
+    left: -35px;
+    top: -15px;
+    z-index: 10;
+}
+
+/* Porta aéreo vertical que ocupa 5x2 celdas */
+.porta-aereo-vertical-5x2 {
+    position: absolute;
+    width: 340px;
+    height: 140px;
+    object-fit: contain;
+    object-position: center;
+    left: -120px;
+    top: 55px;
+    transform: rotate(90deg);
+    z-index: 10;
+}
+/* ================== MODAL DE INGRESO DE NOMBRE ================== */
+
+/* Título del modal de nombre */
+.modal-titulo {
+    display: block;
+    margin-bottom: 16px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #ffffff;
+}
+
+/* Campo de texto para ingresar nombre */
+.input-nombre {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 16px;
+    padding: 10px;
+    font-family: 'Arial', sans-serif;
+    font-size: 14px;
+    color: #000000;
+    background-color: #ffffff;
+    border: 2px solid #ffffff;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Focus del campo de texto */
+.input-nombre:focus {
+    border-color: #fd790d;
+    box-shadow: 0 0 10px #fa8704ef;
+}
+
+/* Placeholder con estilo consistente */
+.input-nombre::placeholder {
+    color: #888888;
+}
+
+/* Hover específico del botón aceptar en modal de nombre*/
+#aceptarNombre:hover {
+    color: #ffffff;
+    background: #00d4ff;
+    box-shadow: 0 0 15px #00d4ff;
+}
+
+/* Hover específico del botón cancelar en modal de nombre */
+#cancelarNombre:hover {
+    color: #ffffff;
+    background: #fd7e14;
+    box-shadow: 0 0 15px #fd7e14;
+}
+
+/* ================== MODAL DE SELECCIÓN DE EQUIPO ================== */
+
+/* Contenedor ampliado para el modal de equipo */
+.modal-equipo {
+    width: 90%;
+    max-width: 500px;
+}
+
+/* Carrusel horizontal de equipos disponibles */
+.equipos-container {
+    display: flex;
+    gap: 30px;
+    justify-content: center;
+    margin: 20px 0;
+    flex-wrap: wrap;
+}
+
+/* Opción individual de equipo */
+.equipo-opcion {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Nombre del equipo */
+.nombre-equipo {
+    margin: 0;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 11px;
+    color: #ffffff;
+    text-align: center;
+}
+
+/* Botón con imagen del equipo */
+.btn-equipo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 140px;
+    height: 140px;
+    padding: 8px;
+    background: #000000;
+    border: 2px solid #ffffff;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+/* Imagen dentro del botón de equipo */
+.btn-equipo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+    display: block;
+}
+
+/* Efecto hover del botón de equipo */
+.btn-equipo:hover {
+    border-color: #00d4ff;
+    box-shadow: 0 0 20px #00d4ff;
+    transform: scale(1.05);
+}
+
+/* Efecto hover específico para Porta Naval (primer botón) */
+.equipo-opcion:first-child .btn-equipo:hover {
+    border-color: #00d4ff;
+    box-shadow: 0 0 20px #00d4ff;
+}
+
+/* Efecto hover alternativo para Porta Aéreo (segundo botón) */
+.equipo-opcion:last-child .btn-equipo:hover {
+    border-color: #fd7e14;
+    box-shadow: 0 0 20px #fd7e14;
+}
+
+/* ================== MODAL DE SELECCIÓN DE ESTRATEGIA ================== */
+
+/* Contenedor ampliado para el modal de estrategia */
+.modal-estrategia {
+    width: 90%;
+    max-width: 600px;
+}
+
+/* Contenedor de imágenes de estrategias */
+.estrategias-container {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin: 20px 0;
+    flex-wrap: wrap;
+}
+
+/* Botón individual de estrategia */
+.btn-estrategia {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 150px;
+    height: 150px;
+    padding: 5px;
+    background: #000000;
+    border: 2px solid #ffffff;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+/* Imagen dentro del botón de estrategia */
+.btn-estrategia img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+}
+
+/* Efecto hover para botones de estrategia*/
+.btn-estrategia:hover {
+    border-color: #00ff00;
+    box-shadow: 0 0 25px #00ff00;
+    transform: scale(1.08);
 }

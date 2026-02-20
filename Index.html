@@ -9,12 +9,12 @@
   <!-- CSS -->
   <link rel="stylesheet" href="css/main.css">
 
-  <!-- Fuente para la interfaz -->
+  <!-- Fuente -->
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 </head>
 
 <body>
-  <!-- Fondo visual de la pantalla de inicio -->
+  <!-- Fondo de la pantalla de inicio -->
   <div class="fondo">
     <img src="Imagenes/Fondo/FondoPantallaDeInicio.jpg" alt="Fondo">
   </div>
@@ -26,20 +26,19 @@
     </div>
   </header>
 
-  <!-- Menú principal de navegación del juego -->
-  <div class="menu-container">
-    <div class="menu-box">
-      <img src="Imagenes/Logo/SoloImagenSinFondo.png" alt="Logo" class="menu-icon">
-      <div class="menu-buttons">
-        <a href="Paginas/start.html" class="game-btn">START</a>
-        <a href="Paginas/reanudarPartida.html" class="game-btn">REANUDAR</a>
-        <a id="btnEliminar" href="Paginas/eliminarPartida.html" class="game-btn">ELIMINAR PARTIDA</a>
+  <main>
+    <!-- Menú principal de navegación -->
+    <div class="menu-container">
+      <div class="menu-box">
+        <img src="Imagenes/Logo/SoloImagenSinFondo.png" alt="Logo" class="menu-icon">
+        <div class="menu-buttons">
+          <button id="btnStart" class="game-btn">START</button>
+          <a href="Paginas/reanudarPartida.html" class="game-btn">REANUDAR</a>
+          <a id="btnEliminar" href="Paginas/eliminarPartida.html" class="game-btn">ELIMINAR PARTIDA</a>
+        </div>
       </div>
     </div>
-  </div>
-
-  <!-- Contenido principal reservado para futuras secciones -->
-  <main></main>
+  </main>
 
   <!-- Pie de página reservado -->
   <footer class="footer"></footer>
@@ -55,51 +54,345 @@
     </div>
   </div>
 
+  <!-- Modal para ingresar nombre de usuario antes de comenzar -->
+  <div id="modalNombre" class="modal-overlay" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <p class="modal-titulo">INGRESA TU USUARIO</p>
+      <input 
+        id="inputNombre" 
+        type="text" 
+        class="input-nombre" 
+        placeholder="Usuario" 
+        maxlength="30"
+        autocomplete="off">
+      <div class="modal-actions">
+        <button id="aceptarNombre" class="game-btn">Aceptar</button>
+        <button id="cancelarNombre" class="game-btn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para seleccionar equipo -->
+  <div id="modalEquipo" class="modal-overlay" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal-box modal-equipo">
+      <p class="modal-titulo">ELIGE TU EQUIPO</p>
+      <div class="equipos-container">
+        <div class="equipo-opcion">
+          <p class="nombre-equipo">Porta Naval</p>
+          <button id="btnPortaNaval" class="btn-equipo">
+            <img src="Imagenes/DronNaval/DronMisil.png" alt="Porta Naval - Dron Misil">
+          </button>
+        </div>
+        <div class="equipo-opcion">
+          <p class="nombre-equipo">Porta Aéreo</p>
+          <button id="btnPortaAereo" class="btn-equipo">
+            <img src="Imagenes/DronAereo/DronAereo.png" alt="Porta Aéreo - Dron Aéreo">
+          </button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="cancelarEquipo" class="game-btn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para seleccionar estrategia Porta Naval -->
+  <div id="modalEstrategiaNaval" class="modal-overlay" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal-box modal-estrategia">
+      <p class="modal-titulo">SELECCIONA TU ESTRATEGIA</p>
+      <div class="estrategias-container">
+        <button id="btnEstratNameNaval1" class="btn-estrategia">
+          <img src="Imagenes/Plantillas/Naval1.jpg" alt="Estrategia Naval 1">
+        </button>
+        <button id="btnEstratNameNaval2" class="btn-estrategia">
+          <img src="Imagenes/Plantillas/Naval2.jpg" alt="Estrategia Naval 2">
+        </button>
+        <button id="btnEstratNameNaval3" class="btn-estrategia">
+          <img src="Imagenes/Plantillas/Naval3.jpg" alt="Estrategia Naval 3">
+        </button>
+      </div>
+      <div class="modal-actions">
+        <button id="cancelarEstrategiaNaval" class="game-btn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para seleccionar estrategia Porta Aéreo -->
+  <div id="modalEstrategiaAereo" class="modal-overlay" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal-box modal-estrategia">
+      <p class="modal-titulo">SELECCIONA TU ESTRATEGIA</p>
+      <div class="estrategias-container">
+        <button id="btnEstratNameAereo1" class="btn-estrategia">
+          <img src="Imagenes/Plantillas/Aereo1.jpg" alt="Estrategia Aéreo 1">
+        </button>
+        <button id="btnEstratNameAereo2" class="btn-estrategia">
+          <img src="Imagenes/Plantillas/Aereo2.jpg" alt="Estrategia Aéreo 2">
+        </button>
+        <button id="btnEstratNameAereo3" class="btn-estrategia">
+          <img src="Imagenes/Plantillas/Aereo3.jpg" alt="Estrategia Aéreo 3">
+        </button>
+      </div>
+      <div class="modal-actions">
+        <button id="cancelarEstrategiaAereo" class="game-btn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // Referencias a elementos del modal de eliminación
+    // ====== LÓGICA DEL MODAL DE ELIMINACIÓN ======
     const btnEliminar = document.getElementById('btnEliminar');
     const modalEliminar = document.getElementById('modalEliminar');
     const confirmarEliminar = document.getElementById('confirmarEliminar');
     const cancelarEliminar = document.getElementById('cancelarEliminar');
 
-    // Inicializa la interacción del modal solo si todos los elementos existen
+    // Inicializar la interacción del modal solo si todos los elementos existen
     if (btnEliminar && modalEliminar && confirmarEliminar && cancelarEliminar) {
-      // Abre el modal y guarda el destino real del enlace
-      btnEliminar.addEventListener('click', function (evento) {
+        btnEliminar.addEventListener('click', function (evento) {
         evento.preventDefault();
         modalEliminar.setAttribute('aria-hidden', 'false');
         modalEliminar.classList.add('activo');
         modalEliminar.dataset.href = this.getAttribute('href');
       });
 
-      // Cierra el modal y limpia el destino temporal guardado
+      // Cerrar el modal y limpia el destino temporal guardado
       function cerrarModal() {
         modalEliminar.setAttribute('aria-hidden', 'true');
         modalEliminar.classList.remove('activo');
         delete modalEliminar.dataset.href;
       }
 
-      // Cierra el modal al pulsar el botón cancelar
+      // Cerrar el modal al pulsar el botón cancelar
       cancelarEliminar.addEventListener('click', cerrarModal);
 
-      // Cierra el modal al hacer clic fuera de la caja de confirmación
+      // Cerrar el modal al hacer clic fuera de la caja de confirmación
       modalEliminar.addEventListener('click', (evento) => {
         if (evento.target === modalEliminar) {
           cerrarModal();
         }
       });
 
-      // Cierra el modal con la tecla Escape
+      // Cerrar el modal con la tecla Escape
       document.addEventListener('keydown', (evento) => {
         if (evento.key === 'Escape') {
           cerrarModal();
         }
       });
 
-      // Confirma la eliminación y redirige a la página correspondiente
+      // Confirmar la eliminación y redirige a la página correspondiente
       confirmarEliminar.addEventListener('click', () => {
         const href = modalEliminar.dataset.href || 'Paginas/eliminarPartida.html';
         window.location.href = href;
+      });
+    }
+
+    // ====== LÓGICA DEL MODAL DE INGRESO DE NOMBRE ======
+    const btnStart = document.getElementById('btnStart');
+    const modalNombre = document.getElementById('modalNombre');
+    const inputNombre = document.getElementById('inputNombre');
+    const aceptarNombre = document.getElementById('aceptarNombre');
+    const cancelarNombre = document.getElementById('cancelarNombre');
+
+    // Verificar que todos los elementos existan antes de inicializar
+    if (btnStart && modalNombre && inputNombre && aceptarNombre && cancelarNombre) {
+      btnStart.addEventListener('click', function () {
+        modalNombre.setAttribute('aria-hidden', 'false');
+        modalNombre.classList.add('activo');
+        inputNombre.focus();
+      });
+
+      // Cerrar el modal de nombre sin guardar
+      function cerrarModalNombre() {
+        modalNombre.setAttribute('aria-hidden', 'true');
+        modalNombre.classList.remove('activo');
+        inputNombre.value = '';
+      }
+
+      // Cerrar el modal al pulsar cancelar
+      cancelarNombre.addEventListener('click', cerrarModalNombre);
+
+      // Cerrar el modal al hacer clic fuera de la caja
+      modalNombre.addEventListener('click', (evento) => {
+        if (evento.target === modalNombre) {
+          cerrarModalNombre();
+        }
+      });
+
+      // Cerrar el modal con la tecla Escape
+      document.addEventListener('keydown', (evento) => {
+        if (evento.key === 'Escape' && modalNombre.getAttribute('aria-hidden') === 'false') {
+          cerrarModalNombre();
+        }
+      });
+
+      // Enviar el nombre y abre el modal de selección de equipo
+      aceptarNombre.addEventListener('click', () => {
+        const nombre = inputNombre.value.trim();
+
+        // Validar que el nombre no esté vacío
+        if (nombre.length === 0) {
+          alert('Por favor, ingresa tu nombre para continuar');
+          inputNombre.focus();
+          return;
+        }
+
+        // Guardar el nombre en localStorage para acceso desde otras páginas
+        localStorage.setItem('nombreUsuario', nombre);
+
+        // Cerrar el modal de nombre
+        cerrarModalNombre();
+
+        // Abrir el modal de selección de equipo
+        modalEquipo.setAttribute('aria-hidden', 'false');
+        modalEquipo.classList.add('activo');
+      });
+
+      // Permitir enviar el nombre con Enter
+      inputNombre.addEventListener('keydown', (evento) => {
+        if (evento.key === 'Enter') {
+          aceptarNombre.click();
+        }
+      });
+    }
+
+    // ====== LÓGICA DEL MODAL DE SELECCIÓN DE EQUIPO ======
+    const modalEquipo = document.getElementById('modalEquipo');
+    const btnPortaNaval = document.getElementById('btnPortaNaval');
+    const btnPortaAereo = document.getElementById('btnPortaAereo');
+    const cancelarEquipo = document.getElementById('cancelarEquipo');
+
+    // Verifica que todos los elementos existan antes de inicializar
+    if (modalEquipo && btnPortaNaval && btnPortaAereo && cancelarEquipo) {
+      // Cerrar el modal de equipo sin guardar
+      function cerrarModalEquipo() {
+        modalEquipo.setAttribute('aria-hidden', 'true');
+        modalEquipo.classList.remove('activo');
+      }
+
+      // Cerrar el modal al pulsar cancelar
+      cancelarEquipo.addEventListener('click', cerrarModalEquipo);
+
+      // Cerrar el modal al hacer clic fuera de la caja
+      modalEquipo.addEventListener('click', (evento) => {
+        if (evento.target === modalEquipo) {
+          cerrarModalEquipo();
+        }
+      });
+
+      // Cerrar el modal con la tecla Escape
+      document.addEventListener('keydown', (evento) => {
+        if (evento.key === 'Escape' && modalEquipo.getAttribute('aria-hidden') === 'false') {
+          cerrarModalEquipo();
+        }
+      });
+
+      // Seleccionar Porta Naval y abrir modal de estrategia
+      btnPortaNaval.addEventListener('click', () => {
+        localStorage.setItem('equipoSeleccionado', 'Porta Naval');
+        cerrarModalEquipo();
+        const modalEstrategiaNaval = document.getElementById('modalEstrategiaNaval');
+        modalEstrategiaNaval.setAttribute('aria-hidden', 'false');
+        modalEstrategiaNaval.classList.add('activo');
+      });
+
+      // Seleccionar Porta Aéreo y abrir modal de estrategia
+      btnPortaAereo.addEventListener('click', () => {
+        localStorage.setItem('equipoSeleccionado', 'Porta Aéreo');
+        cerrarModalEquipo();
+        const modalEstrategiaAereo = document.getElementById('modalEstrategiaAereo');
+        modalEstrategiaAereo.setAttribute('aria-hidden', 'false');
+        modalEstrategiaAereo.classList.add('activo');
+      });
+    }
+
+    // ====== LÓGICA DEL MODAL DE ESTRATEGIA PORTA NAVAL ======
+    const modalEstrategiaNaval = document.getElementById('modalEstrategiaNaval');
+    const btnEstratNaval1 = document.getElementById('btnEstratNameNaval1');
+    const btnEstratNaval2 = document.getElementById('btnEstratNameNaval2');
+    const btnEstratNaval3 = document.getElementById('btnEstratNameNaval3');
+    const cancelarEstrategiaNaval = document.getElementById('cancelarEstrategiaNaval');
+
+    if (modalEstrategiaNaval && btnEstratNaval1 && btnEstratNaval2 && btnEstratNaval3 && cancelarEstrategiaNaval) {
+      function cerrarModalEstrategiaNaval() {
+        modalEstrategiaNaval.setAttribute('aria-hidden', 'true');
+        modalEstrategiaNaval.classList.remove('activo');
+        modalEquipo.setAttribute('aria-hidden', 'false');
+        modalEquipo.classList.add('activo');
+      }
+
+      cancelarEstrategiaNaval.addEventListener('click', cerrarModalEstrategiaNaval);
+
+      modalEstrategiaNaval.addEventListener('click', (evento) => {
+        if (evento.target === modalEstrategiaNaval) {
+          cerrarModalEstrategiaNaval();
+        }
+      });
+
+      document.addEventListener('keydown', (evento) => {
+        if (evento.key === 'Escape' && modalEstrategiaNaval.getAttribute('aria-hidden') === 'false') {
+          cerrarModalEstrategiaNaval();
+        }
+      });
+
+      // Seleccionar estrategia naval y navegar
+      btnEstratNaval1.addEventListener('click', () => {
+        localStorage.setItem('estrategiaSeleccionada', 'Naval1');
+        window.location.href = 'Paginas/start.html';
+      });
+
+      btnEstratNaval2.addEventListener('click', () => {
+        localStorage.setItem('estrategiaSeleccionada', 'Naval2');
+        window.location.href = 'Paginas/start.html';
+      });
+
+      btnEstratNaval3.addEventListener('click', () => {
+        localStorage.setItem('estrategiaSeleccionada', 'Naval3');
+        window.location.href = 'Paginas/start.html';
+      });
+    }
+
+    // ====== LÓGICA DEL MODAL DE ESTRATEGIA PORTA AÉREO ======
+    const modalEstrategiaAereo = document.getElementById('modalEstrategiaAereo');
+    const btnEstratAereo1 = document.getElementById('btnEstratNameAereo1');
+    const btnEstratAereo2 = document.getElementById('btnEstratNameAereo2');
+    const btnEstratAereo3 = document.getElementById('btnEstratNameAereo3');
+    const cancelarEstrategiaAereo = document.getElementById('cancelarEstrategiaAereo');
+
+    if (modalEstrategiaAereo && btnEstratAereo1 && btnEstratAereo2 && btnEstratAereo3 && cancelarEstrategiaAereo) {
+      function cerrarModalEstrategiaAereo() {
+        modalEstrategiaAereo.setAttribute('aria-hidden', 'true');
+        modalEstrategiaAereo.classList.remove('activo');
+        modalEquipo.setAttribute('aria-hidden', 'false');
+        modalEquipo.classList.add('activo');
+      }
+
+      cancelarEstrategiaAereo.addEventListener('click', cerrarModalEstrategiaAereo);
+
+      modalEstrategiaAereo.addEventListener('click', (evento) => {
+        if (evento.target === modalEstrategiaAereo) {
+          cerrarModalEstrategiaAereo();
+        }
+      });
+
+      document.addEventListener('keydown', (evento) => {
+        if (evento.key === 'Escape' && modalEstrategiaAereo.getAttribute('aria-hidden') === 'false') {
+          cerrarModalEstrategiaAereo();
+        }
+      });
+
+      // Seleccionar estrategia aérea y navegar
+      btnEstratAereo1.addEventListener('click', () => {
+        localStorage.setItem('estrategiaSeleccionada', 'Aereo1');
+        window.location.href = 'Paginas/start.html';
+      });
+
+      btnEstratAereo2.addEventListener('click', () => {
+        localStorage.setItem('estrategiaSeleccionada', 'Aereo2');
+        window.location.href = 'Paginas/start.html';
+      });
+
+      btnEstratAereo3.addEventListener('click', () => {
+        localStorage.setItem('estrategiaSeleccionada', 'Aereo3');
+        window.location.href = 'Paginas/start.html';
       });
     }
   </script>
