@@ -1,0 +1,539 @@
+@charset "UTF-8";
+
+/* ================== BASE GLOBAL ================== */
+
+/* Reinicio básico y tamaño de pantalla completo */
+html,
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden;
+}
+
+/* Estructura vertical principal de cada página */
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* Zona principal centrada para el contenido */
+main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ================== PÁGINA INICIO ================== */
+
+/* Fondo fijo de la pantalla de inicio */
+.fondo {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: -1;
+    width: 100%;
+    height: 100vh;
+}
+
+/* Ajuste de la imagen de fondo al viewport */
+.fondo img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    object-position: center;
+}
+
+/* Contenedor del logo principal */
+.titulo {
+    position: absolute;
+    top: -60px;
+    left: 50%;
+    z-index: 1;
+    transform: translateX(-50%);
+}
+
+/* Tamaño del logo principal */
+.titulo img {
+    width: 380px;
+    height: auto;
+    display: block;
+}
+
+/* Contenedor general del menú */
+.menu-container {
+    position: absolute;
+    top: 180px;
+    left: 50%;
+    z-index: 1;
+    transform: translateX(-50%);
+}
+
+/* Caja visual del menú */
+.menu-box {
+    position: relative;
+    width: 360px;
+    padding: 150px 35px 20px;
+    text-align: center;
+    background-color: #000000;
+    border-radius: 20px;
+    box-shadow:
+        0 40px 80px rgba(0, 0, 0, 0.9),
+        0 12px 40px rgba(0, 0, 0, 0.8);
+}
+
+/* Ícono del menú sobre la caja */
+.menu-icon {
+    position: absolute;
+    top: 5px;
+    left: 50%;
+    width: 180px;
+    height: auto;
+    display: block;
+    transform: translateX(-50%);
+}
+
+/* Grupo vertical de botones del menú */
+.menu-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+/* Botón reutilizable para acciones del juego */
+.game-btn {
+    display: inline-block;
+    padding: 12px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 12px;
+    color: #ffffff;
+    text-decoration: none;
+    background: #000000;
+    border: 2px solid #ffffff;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+/* Efecto hover general para botones */
+.game-btn:hover {
+    color: #000000;
+    text-decoration: none;
+    background: #ffffff;
+    box-shadow: 0 0 15px #ffffff;
+}
+
+/* Capa oscura que cubre toda la pantalla al abrir el modal */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.6);
+}
+
+/* Estado visible del modal */
+.modal-overlay.activo {
+    display: flex;
+}
+
+/* Caja central del modal de confirmación */
+.modal-box {
+    width: 360px;
+    max-width: 90%;
+    padding: 20px;
+    text-align: center;
+    color: #ffffff;
+    background: #000000;
+    border: 2px solid #ffffff;
+    border-radius: 12px;
+}
+
+/* Texto principal del mensaje de confirmación */
+.eliminar {
+    margin-bottom: 18px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #ffffff;
+}
+
+/* Fila de acciones del modal */
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 16px;
+}
+
+/* Ajuste de tamaño de botones en el modal */
+.modal-actions .game-btn {
+    padding: 10px 14px;
+    font-size: 12px;
+    border-radius: 8px;
+}
+
+/* Hover específico del botón de confirmación */
+#confirmarEliminar:hover {
+    color: #ffffff;
+    background: #0d6efd;
+    box-shadow: 0 0 14px #0d6efd;
+}
+
+/* Hover específico del botón de cancelación */
+#cancelarEliminar:hover {
+    color: #ffffff;
+    background: #fd7e14;
+    box-shadow: 0 0 14px #fd7e14;
+}
+
+/* ================== PÁGINA START ================== */
+
+/* Fondo fijo de la pantalla de juego */
+.fondoStart {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: -1;
+    width: 100%;
+    height: 100vh;
+}
+
+/* Ajuste de imagen de fondo de la pantalla start */
+.fondoStart img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    object-position: center;
+}
+
+/* Posición del logo en pantalla start */
+.titulostart {
+    position: absolute;
+    top: -65px;
+    left: 5px;
+    z-index: 1;
+}
+
+/* Tamaño del logo en pantalla start */
+.titulostart img {
+    width: 200px;
+    height: auto;
+    display: block;
+}
+
+/* Cuadrícula principal de juego */
+.cuadricula {
+    display: grid;
+    grid-template-columns: repeat(20, 1fr);
+    grid-auto-rows: calc(500px / 10);
+    gap: 0;
+    width: 1000px;
+    margin: 40px auto;
+    justify-content: center;
+}
+
+/* Celda individual de la cuadrícula */
+.celda {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    border: 1px solid #ffffff;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+}
+
+/* Imagen de formación dentro de una celda */
+.elemento-formacion {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+    object-position: center;
+    display: block;
+}
+
+/* Celda ocupada por un puerto/base */
+.celda.ocupada-puerto {
+    background-color: rgba(4, 37, 107, 0.808);
+}
+
+/* Celda ocupada por un dron */
+.celda.ocupada-dron {
+    background-color: rgba(4, 117, 34, 0.836);
+}
+
+/* Rotación para drones que apuntan hacia la derecha */
+.dron-derecha {
+    transform: rotate(90deg);
+}
+
+/* Imagen del porta naval que ocupa múltiples celdas */
+.porta-naval-completo {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+    display: block;
+    transform: rotate(90deg);
+    z-index: 10;
+}
+
+/* Porta naval extendido sobre 7 celdas */
+.porta-naval-extendido {
+    position: absolute;
+    width: 350px;  
+    height: 45px;
+    object-fit: contain;
+    z-index: 10;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+/* Porta naval que ocupa múltiples celdas */
+.porta-naval-grid {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    z-index: 10;
+}
+
+/* Porta naval completo 7 celdas */
+.porta-naval-completo-7-celdas {
+    position: absolute;
+    width: 350px;  
+    height: 200px;
+    object-fit: contain;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%) scaleX(-1);
+    z-index: 10;
+}
+/* Porta naval vertical 7 celdas */
+.porta-naval-vertical-7-celdas {
+    position: absolute;
+    width: 350px;
+    height: 350px;  
+    object-fit: contain;
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%) scaleX(-1) rotate(270deg);
+    z-index: 10;
+}
+
+/* Porta aéreo que ocupa 2x5 celdas */
+.porta-aereo-2x5 {
+    position: absolute;
+    width: 340px;
+    height: 140px;
+    object-fit: contain;
+    object-position: center;
+    left: -35px;
+    top: -15px;
+    z-index: 10;
+}
+
+/* Porta aéreo vertical que ocupa 5x2 celdas */
+.porta-aereo-vertical-5x2 {
+    position: absolute;
+    width: 340px;
+    height: 140px;
+    object-fit: contain;
+    object-position: center;
+    left: -120px;
+    top: 55px;
+    transform: rotate(90deg);
+    z-index: 10;
+}
+/* ================== MODAL DE INGRESO DE NOMBRE ================== */
+
+/* Título del modal de nombre */
+.modal-titulo {
+    display: block;
+    margin-bottom: 16px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #ffffff;
+}
+
+/* Campo de texto para ingresar nombre */
+.input-nombre {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 16px;
+    padding: 10px;
+    font-family: 'Arial', sans-serif;
+    font-size: 14px;
+    color: #000000;
+    background-color: #ffffff;
+    border: 2px solid #ffffff;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Focus del campo de texto */
+.input-nombre:focus {
+    border-color: #fd790d;
+    box-shadow: 0 0 10px #fa8704ef;
+}
+
+/* Placeholder con estilo consistente */
+.input-nombre::placeholder {
+    color: #888888;
+}
+
+/* Hover específico del botón aceptar en modal de nombre*/
+#aceptarNombre:hover {
+    color: #ffffff;
+    background: #00d4ff;
+    box-shadow: 0 0 15px #00d4ff;
+}
+
+/* Hover específico del botón cancelar en modal de nombre */
+#cancelarNombre:hover {
+    color: #ffffff;
+    background: #fd7e14;
+    box-shadow: 0 0 15px #fd7e14;
+}
+
+/* ================== MODAL DE SELECCIÓN DE EQUIPO ================== */
+
+/* Contenedor ampliado para el modal de equipo */
+.modal-equipo {
+    width: 90%;
+    max-width: 500px;
+}
+
+/* Carrusel horizontal de equipos disponibles */
+.equipos-container {
+    display: flex;
+    gap: 30px;
+    justify-content: center;
+    margin: 20px 0;
+    flex-wrap: wrap;
+}
+
+/* Opción individual de equipo */
+.equipo-opcion {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Nombre del equipo */
+.nombre-equipo {
+    margin: 0;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 11px;
+    color: #ffffff;
+    text-align: center;
+}
+
+/* Botón con imagen del equipo */
+.btn-equipo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 140px;
+    height: 140px;
+    padding: 8px;
+    background: #000000;
+    border: 2px solid #ffffff;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+/* Imagen dentro del botón de equipo */
+.btn-equipo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+    display: block;
+}
+
+/* Efecto hover del botón de equipo */
+.btn-equipo:hover {
+    border-color: #00d4ff;
+    box-shadow: 0 0 20px #00d4ff;
+    transform: scale(1.05);
+}
+
+/* Efecto hover específico para Porta Naval (primer botón) */
+.equipo-opcion:first-child .btn-equipo:hover {
+    border-color: #00d4ff;
+    box-shadow: 0 0 20px #00d4ff;
+}
+
+/* Efecto hover alternativo para Porta Aéreo (segundo botón) */
+.equipo-opcion:last-child .btn-equipo:hover {
+    border-color: #fd7e14;
+    box-shadow: 0 0 20px #fd7e14;
+}
+
+/* ================== MODAL DE SELECCIÓN DE ESTRATEGIA ================== */
+
+/* Contenedor ampliado para el modal de estrategia */
+.modal-estrategia {
+    width: 90%;
+    max-width: 600px;
+}
+
+/* Contenedor de imágenes de estrategias */
+.estrategias-container {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin: 20px 0;
+    flex-wrap: wrap;
+}
+
+/* Botón individual de estrategia */
+.btn-estrategia {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 150px;
+    height: 150px;
+    padding: 5px;
+    background: #000000;
+    border: 2px solid #ffffff;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+/* Imagen dentro del botón de estrategia */
+.btn-estrategia img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+}
+
+/* Efecto hover para botones de estrategia*/
+.btn-estrategia:hover {
+    border-color: #00ff00;
+    box-shadow: 0 0 25px #00ff00;
+    transform: scale(1.08);
+}
