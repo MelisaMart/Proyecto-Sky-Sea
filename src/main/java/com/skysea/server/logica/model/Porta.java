@@ -2,6 +2,9 @@ package com.skysea.server.logica.model;
 
 import java.util.Objects;
 import java.util.UUID;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class Porta {
 
@@ -9,12 +12,27 @@ public class Porta {
     private final Equipo equipo;
 
     private Posicion posicion;
+    private final List<Posicion> celdasOcupadas;
     private int impactosRestantes;
 
     public Porta(Equipo equipo, Posicion posicion) {
+        this(equipo, List.of(posicion));
+    }
+
+    public Porta(Equipo equipo, List<Posicion> celdasOcupadas) {
         this.id = UUID.randomUUID().toString();
         this.equipo = Objects.requireNonNull(equipo);
-        this.posicion = Objects.requireNonNull(posicion);
+        Objects.requireNonNull(celdasOcupadas);
+        if (celdasOcupadas.isEmpty()) {
+            throw new IllegalArgumentException("PORTA_SIN_CELDAS");
+        }
+
+        this.celdasOcupadas = new ArrayList<>();
+        for (Posicion p : celdasOcupadas) {
+            this.celdasOcupadas.add(new Posicion(p.getX(), p.getY()));
+        }
+
+        this.posicion = this.celdasOcupadas.get(0);
         this.impactosRestantes = (equipo == Equipo.AEREO)
                 ? Reglas.IMPACTOS_PORTA_AEREO
                 : Reglas.IMPACTOS_PORTA_NAVAL;
@@ -25,6 +43,9 @@ public class Porta {
 
     public Posicion getPosicion() { return posicion; }
     public void setPosicion(Posicion posicion) { this.posicion = Objects.requireNonNull(posicion); }
+    public List<Posicion> getCeldasOcupadas() { return Collections.unmodifiableList(celdasOcupadas); }
+    public boolean ocupa(Posicion posicion) { return celdasOcupadas.contains(posicion); }
+    public boolean esFijo() { return true; }
 
     public int getImpactosRestantes() { return impactosRestantes; }
 

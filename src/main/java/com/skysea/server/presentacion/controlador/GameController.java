@@ -40,6 +40,24 @@ public class GameController {
         servicio.reset();
     }
 
+    @GetMapping("/reset")
+    public Object resetDesdeNavegador() {
+        servicio.reset();
+        return java.util.Map.of("ok", true, "mensaje", "Partida reiniciada");
+    }
+
+    @PostMapping("/resetPartida")
+    public Object resetPartida() {
+        servicioPartida.reset();
+        return java.util.Map.of("ok", true, "mensaje", "Partida de jugadores reiniciada");
+    }
+
+    @GetMapping("/resetPartida")
+    public Object resetPartidaDesdeNavegador() {
+        servicioPartida.reset();
+        return java.util.Map.of("ok", true, "mensaje", "Partida de jugadores reiniciada");
+    }
+
     @PostMapping("/move")
     public GameStateDTO move(@RequestParam int dx, @RequestParam int dy) {
         return toDTO(servicio.mover(dx, dy));
@@ -51,8 +69,9 @@ public class GameController {
     }
 
     @PostMapping("/join")
-    public JoinResponseDTO join(@RequestParam String nombre) {
-        ServicioPartida.JoinResponse r = servicioPartida.join(nombre);
+    public JoinResponseDTO join(@RequestParam String nombre,
+                                @RequestParam(required = false) String equipo) {
+        ServicioPartida.JoinResponse r = servicioPartida.join(nombre, equipo);
         return new JoinResponseDTO(r.idPartida, r.playerId, r.nombre, r.estadoPartida, r.equipo);
     }
 
@@ -73,6 +92,27 @@ public class GameController {
                 "turnoDe", partida.getTurnoDe().name(),
                 "equipo", jugador.getEquipo().name()
         );
+    }
+
+    @PostMapping("/template")
+    public Object seleccionarPlantilla(@RequestParam String playerId,
+                                       @RequestParam String plantilla) {
+        ServicioPartida.TemplateResponse r = servicioPartida.seleccionarPlantilla(playerId, plantilla);
+        java.util.Map<String, Object> out = new java.util.HashMap<>();
+        out.put("ok", r.ok);
+        out.put("estado", r.estado);
+        out.put("equipo", r.equipo);
+        out.put("plantilla", r.plantilla);
+        return out;
+    }
+
+    @GetMapping("/board")
+    public Object board(@RequestParam String playerId) {
+        try {
+            return servicioPartida.obtenerTablero(playerId);
+        } catch (Exception e) {
+            return java.util.Map.of("error", e.getMessage());
+        }
     }
 
     @PostMapping("/endTurn2")

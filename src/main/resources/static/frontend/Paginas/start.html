@@ -7,7 +7,7 @@
   <meta name="description" content="Pantalla de juego de Sky & Sea.">
 
   <!-- CSS -->
-  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="/frontend/css/main.css">
 
   <!-- Fuente -->
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -16,13 +16,13 @@
 <body>
   <!-- Fondo -->
   <div class="fondoStart">
-    <img src="../Imagenes/Fondo/FondoVistaDeArriba.png" alt="Fondo de la partida">
+    <img src="/frontend/Imagenes/Fondo/FondoVistaDeArriba.png" alt="Fondo de la partida">
   </div>
 
   <!-- Encabezado con logotipo -->
   <header>
     <div class="titulostart">
-      <img src="../Imagenes/Logo/LetrasSinfondo.png" alt="Logo Sky & Sea">
+      <img src="/frontend/Imagenes/Logo/LetrasSinfondo.png" alt="Logo Sky & Sea">
     </div>
   </header>
 
@@ -76,7 +76,7 @@
 
     async function refreshPartidaState() {
       if (!playerId) {
-        window.location.href = '../Index.html';
+        window.location.href = '/frontend/Index.html';
         return;
       }
 
@@ -88,7 +88,7 @@
         }
       } catch (error) {
         alert(`Sesión no válida o servidor no disponible: ${error.message}`);
-        window.location.href = '../Index.html';
+        window.location.href = '/frontend/Index.html';
       }
     }
 
@@ -237,11 +237,44 @@
       }
     };
 
+    function normalizarTipoPlantilla(estrategiaSeleccionada) {
+      if (!estrategiaSeleccionada) return null;
+      const s = estrategiaSeleccionada.trim().toUpperCase();
+      if (s.startsWith('AEREO') || s.startsWith('NAVAL')) return estrategiaSeleccionada;
+      return null;
+    }
+
+    function convertirBoardAFormacion(board, equipoAsignado) {
+      const porta = (board.portas || []).find(p => p.equipo === equipoAsignado);
+      const drones = (board.drones || [])
+        .filter(d => d.equipo === equipoAsignado && !d.destruido)
+        .map(d => ({
+          fila: d.y,
+          col: d.x,
+          tipo: d.tipo === 'DRON_AEREO' ? 'DronAereo' : 'DronMisil'
+        }));
+
+      const puertos = porta
+        ? porta.celdas.map(c => ({
+            fila: c.y,
+            col: c.x,
+            tipo: equipoAsignado === 'AEREO' ? 'PortaAereo' : 'PortaNaval'
+          }))
+        : [];
+
+      return { puertos, drones };
+    }
+
     // ====== GENERACIÓN DE CUADRÍCULA Y RENDERIZADO DE FORMACIÓN ======
-    (function () {
+    (async function () {
       const grid = document.getElementById('grid');
       if (!grid) {
         console.error('No se encontró el elemento grid');
+        return;
+      }
+
+      if (!playerId) {
+        window.location.href = '/frontend/Index.html';
         return;
       }
 
@@ -276,10 +309,30 @@
 
       localStorage.setItem('estrategiaSeleccionada', estrategiaSeleccionada);
       console.log('Estrategia seleccionada:', estrategiaSeleccionada);
-      
-      const formacion = formaciones[estrategiaSeleccionada];
 
-      if (formacion) {
+      try {
+        const plantilla = normalizarTipoPlantilla(estrategiaSeleccionada);
+        if (plantilla) {
+          const templateResp = await apiRequest(
+            `/template?playerId=${encodeURIComponent(playerId)}&plantilla=${encodeURIComponent(plantilla)}`,
+            'POST'
+          );
+          if (templateResp?.ok === false && templateResp?.estado !== 'PLANTILLA_YA_BLOQUEADA') {
+            alert(`No se pudo aplicar la plantilla: ${templateResp.estado || 'ERROR'}`);
+            window.location.href = '/frontend/Index.html';
+            return;
+          }
+        }
+
+        const board = await apiRequest(`/board?playerId=${encodeURIComponent(playerId)}`);
+        const formacion = convertirBoardAFormacion(board, equipoAsignado);
+
+        if (!formacion || formacion.puertos.length === 0) {
+          alert('Aún no se pudo cargar la plantilla de despliegue.');
+          window.location.href = '/frontend/Index.html';
+          return;
+        }
+
         formacion.puertos.forEach((puerto, index) => {
           const celdaData = celdas.find(c => c.fila === puerto.fila && c.col === puerto.col);
           if (celdaData) {
@@ -292,7 +345,7 @@
               const esHorizontal = formacion.puertos.every(p => p.fila === puerto.fila);
               
               if (esPortaAereo) {
-                portaImg.src = `../Imagenes/PortaAereo/PortaAereoVistaDesdeArriba.png`;
+                portaImg.src = `/frontend/Imagenes/PortaAereo/PortaAereoVistaDesdeArriba.png`;
                 portaImg.alt = 'Porta Aéreo';
                 const filasPuerto = formacion.puertos.map(p => p.fila);
                 const colsPuerto = formacion.puertos.map(p => p.col);
@@ -305,7 +358,7 @@
                   portaImg.className = 'porta-aereo-vertical-5x2';
                 }
               } else {
-                portaImg.src = `../Imagenes/PortaNaval/PortaNavalVistaDeArriba.png`;
+                portaImg.src = `/frontend/Imagenes/PortaNaval/PortaNavalVistaDeArriba.png`;
                 portaImg.alt = 'Porta Naval';
                 
                 if (esHorizontal) {
@@ -332,10 +385,10 @@
             img.className = 'elemento-formacion';
             
             if (dron.tipo === 'DronAereo') {
-              img.src = `../Imagenes/DronAereo/DronAereoVistaDesdeArriba.png`;
+              img.src = `/frontend/Imagenes/DronAereo/DronAereoVistaDesdeArriba.png`;
               img.alt = 'Dron Aéreo';
             } else {
-              img.src = `../Imagenes/DronNaval/DronMisilVistaDesdeArriba.png`;
+              img.src = `/frontend/Imagenes/DronNaval/DronMisilVistaDesdeArriba.png`;
               img.alt = 'Dron Misil';
               img.className += ' dron-derecha';
             }
@@ -348,8 +401,9 @@
         });
         
         console.log('Formación Naval1 renderizada');
-      } else {
-        console.error('No se encontró la formación:', estrategiaSeleccionada);
+      } catch (error) {
+        alert(`No se pudo cargar tablero desde backend: ${error.message}`);
+        window.location.href = '/frontend/Index.html';
       }
     })();
 

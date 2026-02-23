@@ -16,6 +16,7 @@ public class Dron {
 
     private final int rangoMovimiento;
     private final int rangoVision;
+    private final int rangoAtaque;
 
     private boolean movioEsteTurno;
     private boolean disparoEsteTurno;
@@ -24,20 +25,22 @@ public class Dron {
         this.id = UUID.randomUUID().toString();
         this.equipo = Objects.requireNonNull(equipo);
         this.posicion = Objects.requireNonNull(posicion);
-
-        this.vida = Reglas.VIDA_DRON;
         this.destruido = false;
 
         this.rangoMovimiento = Reglas.RANGO_MOVIMIENTO_DRON;
 
         if (equipo == Equipo.AEREO) {
             // Dron AEREO => BOMBA
+            this.vida = Reglas.VIDA_DRON_AEREO;
             this.municion = Reglas.MUNICION_BOMBA;
             this.rangoVision = Reglas.VISION_BOMBA;
+            this.rangoAtaque = Reglas.RANGO_ATAQUE_BOMBA;
         } else {
             // Dron NAVAL => MISIL
+            this.vida = Reglas.VIDA_DRON_NAVAL;
             this.municion = Reglas.MUNICION_MISIL;
             this.rangoVision = Reglas.VISION_MISIL;
+            this.rangoAtaque = Reglas.RANGO_ATAQUE_MISIL;
         }
 
         this.movioEsteTurno = false;
@@ -55,6 +58,7 @@ public class Dron {
 
     public int getRangoMovimiento() { return rangoMovimiento; }
     public int getRangoVision() { return rangoVision; }
+    public int getRangoAtaque() { return rangoAtaque; }
 
     public boolean estaVivo() { return !destruido && vida > 0; }
 
@@ -85,12 +89,19 @@ public class Dron {
         Objects.requireNonNull(proyectil);
         if (!estaVivo()) return;
 
-        if (proyectil == TipoProyectil.MISIL && equipo == Equipo.AEREO) {
+        if (equipo == Equipo.AEREO && proyectil == TipoProyectil.MISIL) {
             destruir();
             return;
         }
 
-        // MVP: 1 impacto destruye 
+        if (equipo == Equipo.NAVAL && proyectil != TipoProyectil.BOMBA) {
+            return;
+        }
+
+        if (equipo == Equipo.AEREO && proyectil != TipoProyectil.MISIL) {
+            return;
+        }
+
         vida = Math.max(0, vida - 1);
         if (vida == 0) destruido = true;
     }

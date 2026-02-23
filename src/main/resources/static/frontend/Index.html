@@ -7,7 +7,7 @@
   <meta name="description" content="Pantalla de inicio del juego Sky & Sea.">
 
   <!-- CSS -->
-  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="/frontend/css/main.css">
 
   <!-- Fuente -->
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -16,13 +16,13 @@
 <body>
   <!-- Fondo de la pantalla de inicio -->
   <div class="fondo">
-    <img src="Imagenes/Fondo/FondoPantallaDeInicio.jpg" alt="Fondo">
+    <img src="/frontend/Imagenes/Fondo/FondoPantallaDeInicio.jpg" alt="Fondo">
   </div>
 
   <!-- Encabezado con logotipo principal -->
   <header>
     <div class="titulo">
-      <img src="Imagenes/Logo/LetrasSinfondo.png" alt="Logo Sky & Sea">
+      <img src="/frontend/Imagenes/Logo/LetrasSinfondo.png" alt="Logo Sky & Sea">
     </div>
   </header>
 
@@ -30,11 +30,11 @@
     <!-- Menú principal de navegación -->
     <div class="menu-container">
       <div class="menu-box">
-        <img src="Imagenes/Logo/SoloImagenSinFondo.png" alt="Logo" class="menu-icon">
+        <img src="/frontend/Imagenes/Logo/SoloImagenSinFondo.png" alt="Logo" class="menu-icon">
         <div class="menu-buttons">
           <button id="btnStart" class="game-btn">START</button>
-          <a href="Paginas/reanudarPartida.html" class="game-btn">REANUDAR</a>
-          <a id="btnEliminar" href="Paginas/eliminarPartida.html" class="game-btn">ELIMINAR PARTIDA</a>
+          <a href="/frontend/Paginas/reanudarPartida.html" class="game-btn">REANUDAR</a>
+          <a id="btnEliminar" href="/frontend/Paginas/eliminarPartida.html" class="game-btn">ELIMINAR PARTIDA</a>
         </div>
       </div>
     </div>
@@ -80,13 +80,13 @@
         <div class="equipo-opcion">
           <p class="nombre-equipo">Porta Naval</p>
           <button id="btnPortaNaval" class="btn-equipo">
-            <img src="Imagenes/DronNaval/DronMisil.png" alt="Porta Naval - Dron Misil">
+            <img src="/frontend/Imagenes/DronNaval/DronMisil.png" alt="Porta Naval - Dron Misil">
           </button>
         </div>
         <div class="equipo-opcion">
           <p class="nombre-equipo">Porta Aéreo</p>
           <button id="btnPortaAereo" class="btn-equipo">
-            <img src="Imagenes/DronAereo/DronAereo.png" alt="Porta Aéreo - Dron Aéreo">
+            <img src="/frontend/Imagenes/DronAereo/DronAereo.png" alt="Porta Aéreo - Dron Aéreo">
           </button>
         </div>
       </div>
@@ -102,13 +102,13 @@
       <p class="modal-titulo">SELECCIONA TU ESTRATEGIA</p>
       <div class="estrategias-container">
         <button id="btnEstratNameNaval1" class="btn-estrategia">
-          <img src="Imagenes/Plantillas/Naval1.jpg" alt="Estrategia Naval 1">
+          <img src="/frontend/Imagenes/Plantillas/Naval1.jpg" alt="Estrategia Naval 1">
         </button>
         <button id="btnEstratNameNaval2" class="btn-estrategia">
-          <img src="Imagenes/Plantillas/Naval2.jpg" alt="Estrategia Naval 2">
+          <img src="/frontend/Imagenes/Plantillas/Naval2.jpg" alt="Estrategia Naval 2">
         </button>
         <button id="btnEstratNameNaval3" class="btn-estrategia">
-          <img src="Imagenes/Plantillas/Naval3.jpg" alt="Estrategia Naval 3">
+          <img src="/frontend/Imagenes/Plantillas/Naval3.jpg" alt="Estrategia Naval 3">
         </button>
       </div>
       <div class="modal-actions">
@@ -123,13 +123,13 @@
       <p class="modal-titulo">SELECCIONA TU ESTRATEGIA</p>
       <div class="estrategias-container">
         <button id="btnEstratNameAereo1" class="btn-estrategia">
-          <img src="Imagenes/Plantillas/Aereo1.jpg" alt="Estrategia Aéreo 1">
+          <img src="/frontend/Imagenes/Plantillas/Aereo1.jpg" alt="Estrategia Aéreo 1">
         </button>
         <button id="btnEstratNameAereo2" class="btn-estrategia">
-          <img src="Imagenes/Plantillas/Aereo2.jpg" alt="Estrategia Aéreo 2">
+          <img src="/frontend/Imagenes/Plantillas/Aereo2.jpg" alt="Estrategia Aéreo 2">
         </button>
         <button id="btnEstratNameAereo3" class="btn-estrategia">
-          <img src="Imagenes/Plantillas/Aereo3.jpg" alt="Estrategia Aéreo 3">
+          <img src="/frontend/Imagenes/Plantillas/Aereo3.jpg" alt="Estrategia Aéreo 3">
         </button>
       </div>
       <div class="modal-actions">
@@ -459,7 +459,7 @@
           return;
         }
         localStorage.setItem('estrategiaSeleccionada', 'Naval1');
-        window.location.href = 'Paginas/start.html';
+        window.location.href = '/frontend/Paginas/start.html';
       });
 
       btnEstratNaval2.addEventListener('click', () => {
@@ -468,7 +468,7 @@
           return;
         }
         localStorage.setItem('estrategiaSeleccionada', 'Naval2');
-        window.location.href = 'Paginas/start.html';
+        window.location.href = '/frontend/Paginas/start.html';
       });
 
       btnEstratNaval3.addEventListener('click', () => {
@@ -477,7 +477,7 @@
           return;
         }
         localStorage.setItem('estrategiaSeleccionada', 'Naval3');
-        window.location.href = 'Paginas/start.html';
+        window.location.href = '/frontend/Paginas/start.html';
       });
     }
 
@@ -517,7 +517,7 @@
           return;
         }
         localStorage.setItem('estrategiaSeleccionada', 'Aereo1');
-        window.location.href = 'Paginas/start.html';
+        window.location.href = '/frontend/Paginas/start.html';
       });
 
       btnEstratAereo2.addEventListener('click', () => {
@@ -526,7 +526,7 @@
           return;
         }
         localStorage.setItem('estrategiaSeleccionada', 'Aereo2');
-        window.location.href = 'Paginas/start.html';
+        window.location.href = '/frontend/Paginas/start.html';
       });
 
       btnEstratAereo3.addEventListener('click', () => {
@@ -535,7 +535,7 @@
           return;
         }
         localStorage.setItem('estrategiaSeleccionada', 'Aereo3');
-        window.location.href = 'Paginas/start.html';
+        window.location.href = '/frontend/Paginas/start.html';
       });
     }
   </script>

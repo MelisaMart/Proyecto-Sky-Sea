@@ -11,6 +11,7 @@ public class Jugador {
     private String nombre;
     private Equipo equipo;
     private boolean conectado;
+    private String plantillaSeleccionada;
 
     private Porta porta;
     private final List<Dron> drones;
@@ -19,6 +20,7 @@ public class Jugador {
         this.id = UUID.randomUUID().toString();
         this.nombre = normalizarNombre(nombre);
         this.conectado = true;
+        this.plantillaSeleccionada = null;
         this.drones = new ArrayList<>();
     }
 
@@ -28,6 +30,7 @@ public class Jugador {
         this.nombre = normalizarNombre(nombre);
         this.equipo = equipo;
         this.conectado = conectado;
+        this.plantillaSeleccionada = null;
         this.drones = new ArrayList<>();
     }
 
@@ -99,6 +102,23 @@ public class Jugador {
                 .orElse(null);
     }
 
+    public void aplicarPlantilla(PlantillaDespliegue plantilla) {
+        Objects.requireNonNull(plantilla);
+        if (equipo == null) {
+            throw new IllegalStateException("EQUIPO_NO_ASIGNADO");
+        }
+        if (plantilla.getEquipo() != equipo) {
+            throw new IllegalArgumentException("PLANTILLA_NO_CORRESPONDE_AL_EQUIPO");
+        }
+
+        this.porta = new Porta(equipo, plantilla.getPortaCells());
+        this.drones.clear();
+        for (Posicion posicionDron : plantilla.getDrones()) {
+            this.drones.add(new Dron(equipo, new Posicion(posicionDron.getX(), posicionDron.getY())));
+        }
+        this.plantillaSeleccionada = plantilla.getNombre();
+    }
+
     // ----------------- Getters/Setters -----------------
 
     public String getId() { return id; }
@@ -120,6 +140,12 @@ public class Jugador {
     public Porta getPorta() { return porta; }
 
     public List<Dron> getDrones() { return drones; }
+
+    public String getPlantillaSeleccionada() { return plantillaSeleccionada; }
+
+    public void setPlantillaSeleccionada(String plantillaSeleccionada) {
+        this.plantillaSeleccionada = plantillaSeleccionada;
+    }
 
     // ----------------- Helpers -----------------
 
