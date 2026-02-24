@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sky & Sea</title>
+  <meta name="description" content="Pantalla de juego de Sky & Sea.">
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/frontend/css/main.css">
+
+  <!-- Fuente -->
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <!-- Fondo -->
+  <div class="fondoStart">
+    <img src="/frontend/Imagenes/Fondo/FondoVistaDeArriba.png" alt="Fondo de la partida">
+  </div>
+
+  <!-- Encabezado con logotipo -->
+  <header>
+    <div class="titulostart">
+      <img src="/frontend/Imagenes/Logo/LetrasSinfondo.png" alt="Logo Sky & Sea">
+    </div>
+  </header>
+
+  <!-- Contenido principal con la cuadrícula del juego -->
+  <main>
+    <div class="cuadricula" id="grid"></div>
+  </main>
+
+  <!-- Pie de página reservado -->
+  <footer class="footer"></footer>
+
+  <script>
+    const API_BASE = (window.location.protocol === 'file:' || window.location.port !== '8080')
+      ? 'http://localhost:8080'
+      : '';
+    const API = `${API_BASE}/api/game`;
+    const playerId = localStorage.getItem('playerId');
+
+    // global helpers used by move logic
+    let celdas = [];                       // será llenado cuando se cree la cuadrícula
+
+    // --- selección y movimiento de dron ---
+    let selectedDron = null;               // {id,fila,col,cell}
+    let moveMode = false;
+    let moveCells = [];                    // array de {cell,handler}
+
+    function exitMoveMode() {
+      moveMode = false;
+      moveCells.forEach(({cell, handler}) => {
+        cell.classList.remove('movible');
+        cell.removeEventListener('click', handler);
+      });
+      moveCells = [];
+      // reactivar botón si hay dron seleccionado
+      if (btnMover) btnMover.disabled = !selectedDron;
+    }
+
+    function enterMoveMode() {
+      if (!selectedDron || moveMode) return;
+      moveMode = true;
+      const {fila: f0, col: c0} = selectedDron;
+      celdas.forEach(({celda, fila, col}) => {
+        const dx = col - c0;
+        const dy = fila - f0;
+        // no permitir moverse a celdas ya ocupadas por un dron
+        if (celda.classList.contains('ocupada-dron') || celda.dataset.dronId) {
+          return;
+        }
+        if (Math.abs(dx) <= 2 && Math.abs(dy) <= 2 && !(dx === 0 && dy === 0)) {
+          celda.classList.add('movible');
+          const handler = async () => {
+            try {
+              const resp = await fetch(
+                `${API}/move2?playerId=${encodeURIComponent(playerId)}&fila=${fila}&col=${col}`,
+                { method: 'POST' }
+              );
+              const data = await resp.json();
+              if (data.ok) {
+                // trasladar imagen y clases
+                const oldCell = selectedDron.cell;
+                const img = oldCell.querySelector('img');
+                if (img) celda.appendChild(img);
+                // mover identificador y clases
+                celda.dataset.dronId = selectedDron.id;
+                delete oldCell.dataset.dronId;
+                oldCell.classList.remove('ocupada-dron','seleccionado');
+                celda.classList.add('ocupada-dron','seleccionado');
+                selectedDron.cell = celda;
+                selectedDron.fila = fila;
+                selectedDron.col = col;
+                exitMoveMode();
+              } else {
+                alert('Movimiento inválido: ' + (data.estado || 'ERROR'));
+                // mantener el modo para intentar otra casilla
+              }
+            } catch (err) {
+              alert('Error al mover dron: ' + err.message);
+            }
+          };
+          celda.addEventListener('click', handler);
+          moveCells.push({cell: celda, handler});
+        }
+      });
+    }
+
+    // botón de movimiento será creado tras la cuadrícula
+    let btnMover = null;
+
+    function estrategiaDefaultPorEquipo(equipo) {
+      return equipo === 'AEREO' ? 'Aereo1' : 'Naval1';
+    }
+
+    function estrategiaValidaParaEquipo(estrategia, equipo) {
+      if (!estrategia) return false;
+      if (equipo === 'AEREO') return estrategia.startsWith('Aereo');
+      return estrategia.startsWith('Naval');
+    }
+
+    async function apiRequest(path, method = 'GET') {
+      const response = await fetch(`${API}${path}`, { method });
+      const raw = await response.text();
+      let data = null;
+
+      if (raw) {
+        try {
+          data = JSON.parse(raw);
+        } catch (_) {
+          throw new Error(`Respuesta no válida del servidor (HTTP ${response.status})`);
+        }
+      }
+
+      if (!response.ok) {
+        throw new Error(data?.error || `HTTP_${response.status}`);
+      }
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      return data || {};
+    }
+
+    async function refreshPartidaState() {
+      if (!playerId) {
+        window.location.href = '/frontend/Index.html';
+        return;
+      }
+
+      try {
+        const state = await apiRequest(`/state2?playerId=${encodeURIComponent(playerId)}`);
+
+        if (state.equipo) {
+          localStorage.setItem('equipoAsignado', state.equipo);
+        }
+      } catch (error) {
+        alert(`Sesión no válida o servidor no disponible: ${error.message}`);
+        window.location.href = '/frontend/Index.html';
+      }
+    }
+
+    // ====== DEFINICIÓN DE FORMACIONES ======
+    const formaciones = {
+      Naval1: {
+        drones: [
+          { fila: 0, col: 12, tipo: 'DronMisil' },
+          { fila: 2, col: 11, tipo: 'DronMisil' },
+          { fila: 2, col: 14, tipo: 'DronMisil' },
+          { fila: 2, col: 17, tipo: 'DronMisil' },
+          { fila: 3, col: 11, tipo: 'DronMisil' },
+          { fila: 5, col: 11, tipo: 'DronMisil' }
+        ],
+        puertos: [
+          { fila: 0, col: 13, tipo: 'PortaNaval' },
+          { fila: 0, col: 14, tipo: 'PortaNaval' },
+          { fila: 0, col: 15, tipo: 'PortaNaval' },
+          { fila: 0, col: 16, tipo: 'PortaNaval' },
+          { fila: 0, col: 17, tipo: 'PortaNaval' },
+          { fila: 0, col: 18, tipo: 'PortaNaval' },
+          { fila: 0, col: 19, tipo: 'PortaNaval' }
+        ]
+      },
+      Naval2: {
+        drones: [
+          { fila: 2, col: 10, tipo: 'DronMisil' },
+          { fila: 4, col: 11, tipo: 'DronMisil' },
+          { fila: 6, col: 10, tipo: 'DronMisil' },
+          { fila: 8, col: 11, tipo: 'DronMisil' },
+          { fila: 4, col: 17, tipo: 'DronMisil' },
+          { fila: 7, col: 17, tipo: 'DronMisil' }
+        ],
+        puertos: [
+          { fila: 2, col: 19, tipo: 'PortaNaval' },
+          { fila: 3, col: 19, tipo: 'PortaNaval' },
+          { fila: 4, col: 19, tipo: 'PortaNaval' },
+          { fila: 5, col: 19, tipo: 'PortaNaval' },
+          { fila: 6, col: 19, tipo: 'PortaNaval' },
+          { fila: 7, col: 19, tipo: 'PortaNaval' },
+          { fila: 8, col: 19, tipo: 'PortaNaval' }
+        ]
+      },
+      Naval3: {
+        drones: [
+          { fila: 0, col: 11, tipo: 'DronMisil' },
+          { fila: 3, col: 11, tipo: 'DronMisil' },
+          { fila: 3, col: 13, tipo: 'DronMisil' },
+          { fila: 6, col: 11, tipo: 'DronMisil' },
+          { fila: 6, col: 13, tipo: 'DronMisil' },
+          { fila: 9, col: 11, tipo: 'DronMisil' }
+        ],
+        puertos: [
+          { fila: 8, col: 13, tipo: 'PortaNaval' },
+          { fila: 8, col: 14, tipo: 'PortaNaval' },
+          { fila: 8, col: 15, tipo: 'PortaNaval' },
+          { fila: 8, col: 16, tipo: 'PortaNaval' },
+          { fila: 8, col: 17, tipo: 'PortaNaval' },
+          { fila: 8, col: 18, tipo: 'PortaNaval' },
+          { fila: 8, col: 19, tipo: 'PortaNaval' }
+        ]
+      },
+      Aereo1: {
+        drones: [
+          { fila: 0, col: 5, tipo: 'DronAereo' },
+          { fila: 1, col: 5, tipo: 'DronAereo' },
+          { fila: 3, col: 1, tipo: 'DronAereo' },
+          { fila: 4, col: 2, tipo: 'DronAereo' },
+          { fila: 5, col: 1, tipo: 'DronAereo' },
+          { fila: 5, col: 3, tipo: 'DronAereo' },
+          { fila: 6, col: 2, tipo: 'DronAereo' },
+          { fila: 6, col: 4, tipo: 'DronAereo' },
+          { fila: 7, col: 1, tipo: 'DronAereo' },
+          { fila: 7, col: 3, tipo: 'DronAereo' },
+          { fila: 8, col: 2, tipo: 'DronAereo' },
+          { fila: 9, col: 1, tipo: 'DronAereo' }
+        ],
+        puertos: [
+          { fila: 0, col: 0, tipo: 'PortaAereo' },
+          { fila: 0, col: 1, tipo: 'PortaAereo' },
+          { fila: 0, col: 2, tipo: 'PortaAereo' },
+          { fila: 0, col: 3, tipo: 'PortaAereo' },
+          { fila: 0, col: 4, tipo: 'PortaAereo' },
+          { fila: 1, col: 0, tipo: 'PortaAereo' },
+          { fila: 1, col: 1, tipo: 'PortaAereo' },
+          { fila: 1, col: 2, tipo: 'PortaAereo' },
+          { fila: 1, col: 3, tipo: 'PortaAereo' },
+          { fila: 1, col: 4, tipo: 'PortaAereo' }
+        ]
+      },
+      Aereo2: {
+        drones: [
+          { fila: 0, col: 1, tipo: 'DronAereo' },
+          { fila: 0, col: 3, tipo: 'DronAereo' },
+          { fila: 0, col: 5, tipo: 'DronAereo' },
+          { fila: 2, col: 1, tipo: 'DronAereo' },
+          { fila: 2, col: 3, tipo: 'DronAereo' },
+          { fila: 2, col: 5, tipo: 'DronAereo' },
+          { fila: 4, col: 1, tipo: 'DronAereo' },
+          { fila: 4, col: 3, tipo: 'DronAereo' },
+          { fila: 4, col: 5, tipo: 'DronAereo' },
+          { fila: 6, col: 1, tipo: 'DronAereo' },
+          { fila: 6, col: 3, tipo: 'DronAereo' },
+          { fila: 6, col: 5, tipo: 'DronAereo' }
+        ],
+        puertos: [
+          { fila: 8, col: 1, tipo: 'PortaAereo' },
+          { fila: 8, col: 2, tipo: 'PortaAereo' },
+          { fila: 8, col: 3, tipo: 'PortaAereo' },
+          { fila: 8, col: 4, tipo: 'PortaAereo' },
+          { fila: 8, col: 5, tipo: 'PortaAereo' },
+          { fila: 9, col: 1, tipo: 'PortaAereo' },
+          { fila: 9, col: 2, tipo: 'PortaAereo' },
+          { fila: 9, col: 3, tipo: 'PortaAereo' },
+          { fila: 9, col: 4, tipo: 'PortaAereo' },
+          { fila: 9, col: 5, tipo: 'PortaAereo' }
+        ]
+      },
+      Aereo3: {
+        drones: [
+          { fila: 0, col: 3, tipo: 'DronAereo' },
+          { fila: 1, col: 2, tipo: 'DronAereo' },
+          { fila: 1, col: 5, tipo: 'DronAereo' },
+          { fila: 2, col: 3, tipo: 'DronAereo' },
+          { fila: 3, col: 2, tipo: 'DronAereo' },
+          { fila: 4, col: 3, tipo: 'DronAereo' },
+          { fila: 4, col: 5, tipo: 'DronAereo' },
+          { fila: 5, col: 2, tipo: 'DronAereo' },
+          { fila: 6, col: 3, tipo: 'DronAereo' },
+          { fila: 7, col: 2, tipo: 'DronAereo' },
+          { fila: 7, col: 5, tipo: 'DronAereo' },
+          { fila: 8, col: 3, tipo: 'DronAereo' }
+        ],
+        puertos: [
+          { fila: 2, col: 0, tipo: 'PortaAereo' },
+          { fila: 2, col: 1, tipo: 'PortaAereo' },
+          { fila: 3, col: 0, tipo: 'PortaAereo' },
+          { fila: 3, col: 1, tipo: 'PortaAereo' },
+          { fila: 4, col: 0, tipo: 'PortaAereo' },
+          { fila: 4, col: 1, tipo: 'PortaAereo' },
+          { fila: 5, col: 0, tipo: 'PortaAereo' },
+          { fila: 5, col: 1, tipo: 'PortaAereo' },
+          { fila: 6, col: 0, tipo: 'PortaAereo' },
+          { fila: 6, col: 1, tipo: 'PortaAereo' }
+        ]
+      }
+    };
+
+    function normalizarTipoPlantilla(estrategiaSeleccionada) {
+      if (!estrategiaSeleccionada) return null;
+      const s = estrategiaSeleccionada.trim().toUpperCase();
+      if (s.startsWith('AEREO') || s.startsWith('NAVAL')) return estrategiaSeleccionada;
+      return null;
+    }
+
+    function convertirBoardAFormacion(board, equipoAsignado) {
+      const porta = (board.portas || []).find(p => p.equipo === equipoAsignado);
+      const drones = (board.drones || [])
+        .filter(d => d.equipo === equipoAsignado && !d.destruido)
+        .map(d => ({
+          id: d.id,                    // conservar identificador del dron
+          fila: d.y,
+          col: d.x,
+          tipo: d.tipo === 'DRON_AEREO' ? 'DronAereo' : 'DronMisil'
+        }));
+
+      const puertos = porta
+        ? porta.celdas.map(c => ({
+            fila: c.y,
+            col: c.x,
+            tipo: equipoAsignado === 'AEREO' ? 'PortaAereo' : 'PortaNaval'
+          }))
+        : [];
+
+      return { puertos, drones };
+    }
+
+    // ====== GENERACIÓN DE CUADRÍCULA Y RENDERIZADO DE FORMACIÓN ======
+    (async function () {
+      const grid = document.getElementById('grid');
+      if (!grid) {
+        console.error('No se encontró el elemento grid');
+        return;
+      }
+
+      // crear botón mover y colocarlo justo después del grid
+      btnMover = document.createElement('button');
+      btnMover.id = 'btnMover';
+      btnMover.textContent = 'Mover';
+      btnMover.disabled = true;
+      btnMover.style.margin = '10px';
+      btnMover.addEventListener('click', enterMoveMode);
+      grid.parentNode.insertBefore(btnMover, grid.nextSibling);
+
+      if (!playerId) {
+        window.location.href = '/frontend/Index.html';
+        return;
+      }
+
+      const filasTotal = 10;     
+      const colsTotal = 20;      
+      celdas = [];
+
+      for (let f = 0; f < filasTotal; f++) {
+        for (let c = 0; c < colsTotal; c++) {
+          const celda = document.createElement('div');
+          celda.className = 'celda';
+          
+          celda.dataset.fila = f;
+          celda.dataset.col = c;
+          
+          celda.addEventListener('click', async () => {
+            const dronId = celda.dataset.dronId;
+            if (!dronId) {
+              return; // nothing to do on empty cell
+            }
+            if (!playerId) {
+              // TODO el playerId debería guardarse al hacer join inicial
+              alert('Jugador no identificado');
+              return;
+            }
+            try {
+              const resp = await fetch(`${API}/selectDrone2?playerId=${encodeURIComponent(playerId)}&dronId=${encodeURIComponent(dronId)}`, {
+                method: 'POST'
+              });
+              const data = await resp.json();
+              if (data.ok) {
+                // visualizar selección y guardar estado
+                document.querySelectorAll('.celda.seleccionado').forEach(el => el.classList.remove('seleccionado'));
+                celda.classList.add('seleccionado');
+                // actualizar variable global
+                selectedDron = {
+                  id: dronId,
+                  fila: parseInt(celda.dataset.fila),
+                  col: parseInt(celda.dataset.col),
+                  cell: celda
+                };
+                // activar botón mover y cancelar cualquier modo previo
+                exitMoveMode();
+                if (btnMover) btnMover.disabled = false;
+              } else {
+                alert('No se pudo seleccionar el dron: ' + (data.estado || 'ERROR'));
+              }
+            } catch (err) {
+              alert('Error al llamar selectDrone: ' + err.message);
+            }
+          });
+          
+          grid.appendChild(celda);
+          celdas.push({ celda, fila: f, col: c });
+        }
+      }
+
+      console.log('Cuadrícula creada:', filasTotal, 'filas x', colsTotal, 'columnas =', celdas.length, 'celdas');
+
+      const equipoAsignado = localStorage.getItem('equipoAsignado') || 'NAVAL';
+      const estrategiaGuardada = localStorage.getItem('estrategiaSeleccionada');
+      const estrategiaSeleccionada = estrategiaValidaParaEquipo(estrategiaGuardada, equipoAsignado)
+        ? estrategiaGuardada
+        : estrategiaDefaultPorEquipo(equipoAsignado);
+
+      localStorage.setItem('estrategiaSeleccionada', estrategiaSeleccionada);
+      console.log('Estrategia seleccionada:', estrategiaSeleccionada);
+
+      try {
+        const plantilla = normalizarTipoPlantilla(estrategiaSeleccionada);
+        if (plantilla) {
+          const templateResp = await apiRequest(
+            `/template?playerId=${encodeURIComponent(playerId)}&plantilla=${encodeURIComponent(plantilla)}`,
+            'POST'
+          );
+          if (templateResp?.ok === false && templateResp?.estado !== 'PLANTILLA_YA_BLOQUEADA') {
+            alert(`No se pudo aplicar la plantilla: ${templateResp.estado || 'ERROR'}`);
+            window.location.href = '/frontend/Index.html';
+            return;
+          }
+        }
+
+        const board = await apiRequest(`/board?playerId=${encodeURIComponent(playerId)}`);
+        const formacion = convertirBoardAFormacion(board, equipoAsignado);
+
+        if (!formacion || formacion.puertos.length === 0) {
+          alert('Aún no se pudo cargar la plantilla de despliegue.');
+          window.location.href = '/frontend/Index.html';
+          return;
+        }
+
+        formacion.puertos.forEach((puerto, index) => {
+          const celdaData = celdas.find(c => c.fila === puerto.fila && c.col === puerto.col);
+          if (celdaData) {
+            celdaData.celda.classList.add('ocupada-puerto');
+            
+            if (index === 0) {
+              const portaImg = document.createElement('img');
+              
+              const esPortaAereo = puerto.tipo === 'PortaAereo';
+              const esHorizontal = formacion.puertos.every(p => p.fila === puerto.fila);
+              
+              if (esPortaAereo) {
+                portaImg.src = `/frontend/Imagenes/PortaAereo/PortaAereoVistaDesdeArriba.png`;
+                portaImg.alt = 'Porta Aéreo';
+                const filasPuerto = formacion.puertos.map(p => p.fila);
+                const colsPuerto = formacion.puertos.map(p => p.col);
+                const spanFilas = Math.max(...filasPuerto) - Math.min(...filasPuerto) + 1;
+                const spanCols = Math.max(...colsPuerto) - Math.min(...colsPuerto) + 1;
+
+                if (spanCols >= spanFilas) {
+                  portaImg.className = 'porta-aereo-2x5';
+                } else {
+                  portaImg.className = 'porta-aereo-vertical-5x2';
+                }
+              } else {
+                portaImg.src = `/frontend/Imagenes/PortaNaval/PortaNavalVistaDeArriba.png`;
+                portaImg.alt = 'Porta Naval';
+                
+                if (esHorizontal) {
+                  portaImg.className = 'porta-naval-completo-7-celdas';
+                } else {
+                  portaImg.className = 'porta-naval-vertical-7-celdas';
+                }
+              }
+              
+              portaImg.onload = () => console.log('Imagen Porta cargada');
+              portaImg.onerror = () => console.error('Error al cargar imagen del porta');
+              celdaData.celda.appendChild(portaImg);
+            }
+          }
+        });
+
+        formacion.drones.forEach((dron, idx) => {
+          const celdaData = celdas.find(c => c.fila === dron.fila && c.col === dron.col);
+          if (celdaData) {
+            const celda = celdaData.celda;
+            celda.classList.add('ocupada-dron');
+            // exponer el id del dron en el dataset para selección posterior
+            if (dron.id) celda.dataset.dronId = dron.id;
+            
+            const img = document.createElement('img');
+            img.className = 'elemento-formacion';
+            
+            if (dron.tipo === 'DronAereo') {
+              img.src = `/frontend/Imagenes/DronAereo/DronAereoVistaDesdeArriba.png`;
+              img.alt = 'Dron Aéreo';
+            } else {
+              img.src = `/frontend/Imagenes/DronNaval/DronMisilVistaDesdeArriba.png`;
+              img.alt = 'Dron Misil';
+              img.className += ' dron-derecha';
+            }
+            
+            img.onload = () => console.log('Imagen Dron cargada', dron.tipo, idx);
+            img.onerror = () => console.error('Error al cargar imagen del dron:', dron.tipo);
+            celda.appendChild(img);
+            console.log('Dron', idx, dron.tipo, 'agregado en fila', dron.fila, 'col', dron.col);
+          }
+        });
+        
+        console.log('Formación Naval1 renderizada');
+      } catch (error) {
+        alert(`No se pudo cargar tablero desde backend: ${error.message}`);
+        window.location.href = '/frontend/Index.html';
+      }
+    })();
+
+    refreshPartidaState();
+    setInterval(refreshPartidaState, 2000);
+  </script>
+</body>
+</html>
