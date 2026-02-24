@@ -273,6 +273,11 @@ main {
     background-color: rgba(4, 117, 34, 0.836);
 }
 
+/* Celda cuyo dron ha sido seleccionado por el jugador */
+.celda.seleccionado {
+    outline: 3px solid yellow;
+}
+
 /* Rotación para drones que apuntan hacia la derecha */
 .dron-derecha {
     transform: rotate(90deg);

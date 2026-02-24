@@ -139,6 +139,52 @@ public class ServicioPartida {
         return new TemplateResponse(true, "OK", jugador.getEquipo().name(), jugador.getPlantillaSeleccionada());
     }
 
+    /**
+     * Selecciona un dron para el jugador identificado por playerId.
+     * Retorna OK únicamente si se cumplen todas las reglas de negocio:
+     *   - la partida está EN_JUEGO
+     *   - es el turno del jugador
+     *   - el dron pertenece al jugador
+     *   - el jugador no había escogido ya otro dron
+     * En caso contrario se devuelve ERROR. El "equipo" se rellena cuando hay ok,
+     * y la columna de plantilla se usa para propagar el id del dron seleccionado.
+     */
+    public TemplateResponse selectDrone(String playerId, String dronId) {
+        Partida partida = dao.loadActiva();
+
+        // regla 1: estado EN_JUEGO
+        if (partida.getEstado() != EstadoPartida.EN_JUEGO) {
+            return new TemplateResponse(false, "ERROR", null, null);
+        }
+
+        // regla 2: es el turno del jugador
+        if (!partida.esTurnoDe(playerId)) {
+            return new TemplateResponse(false, "ERROR", null, null);
+        }
+
+        // obtengo jugador y valido existencia
+        Jugador jugador = partida.buscarJugadorPorId(playerId);
+        if (jugador == null) {
+            return new TemplateResponse(false, "ERROR", null, null);
+        }
+
+        // regla 3: el dron debe pertenecerle
+        Dron dron = jugador.buscarDronPorId(dronId);
+        if (dron == null) {
+            return new TemplateResponse(false, "ERROR", null, null);
+        }
+
+        // regla 4: no había seleccionado otro dron previamente
+        if (jugador.getDronSeleccionado() != null) {
+            return new TemplateResponse(false, "ERROR", null, null);
+        }
+
+        // todas las reglas cumplidas: guardar selección y persistir
+        jugador.setDronSeleccionado(dronId);
+        dao.save(partida);
+        return new TemplateResponse(true, "OK", jugador.getEquipo().name(), dronId);
+    }
+
     public BoardResponse obtenerTablero(String playerId) {
         Partida partida = dao.loadActiva();
         Jugador jugador = partida.buscarJugadorPorId(playerId);

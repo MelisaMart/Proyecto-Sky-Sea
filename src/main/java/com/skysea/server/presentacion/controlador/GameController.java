@@ -132,6 +132,19 @@ public class GameController {
         }
     }
 
+    @PostMapping("/selectDrone2")
+    public Object selectDrone2(@RequestParam String playerId, @RequestParam String dronId) {
+        try {
+            ServicioPartida.TemplateResponse r = servicioPartida.selectDrone(playerId, dronId);
+            java.util.Map<String, Object> out = new java.util.HashMap<>();
+            out.put("ok", r.ok);
+            out.put("estado", r.estado);
+            out.put("dronId", dronId); // información de debug
+            return out;
+        } catch (Exception e) {
+            return java.util.Map.of("error", e.getMessage());
+        }
+    }
 
     private GameStateDTO toDTO(EstadoJuego estado) {
         GameStateDTO dto = new GameStateDTO();

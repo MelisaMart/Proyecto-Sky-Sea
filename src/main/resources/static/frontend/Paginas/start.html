@@ -249,6 +249,7 @@
       const drones = (board.drones || [])
         .filter(d => d.equipo === equipoAsignado && !d.destruido)
         .map(d => ({
+          id: d.id,                    // conservar identificador del dron
           fila: d.y,
           col: d.x,
           tipo: d.tipo === 'DRON_AEREO' ? 'DronAereo' : 'DronMisil'
@@ -290,8 +291,31 @@
           celda.dataset.fila = f;
           celda.dataset.col = c;
           
-          celda.addEventListener('click', () => {
-            console.log(`Celda (fila=${f}, col=${c})`);
+          celda.addEventListener('click', async () => {
+            const dronId = celda.dataset.dronId;
+            if (!dronId) {
+              return; // nothing to do on empty cell
+            }
+            if (!playerId) {
+              // TODO el playerId debería guardarse al hacer join inicial
+              alert('Jugador no identificado');
+              return;
+            }
+            try {
+              const resp = await fetch(`${API}/selectDrone2?playerId=${encodeURIComponent(playerId)}&dronId=${encodeURIComponent(dronId)}`, {
+                method: 'POST'
+              });
+              const data = await resp.json();
+              if (data.ok) {
+                // visualmente marcar la celda seleccionada
+                document.querySelectorAll('.celda.seleccionado').forEach(el => el.classList.remove('seleccionado'));
+                celda.classList.add('seleccionado');
+              } else {
+                alert('No se pudo seleccionar el dron: ' + (data.estado || 'ERROR'));
+              }
+            } catch (err) {
+              alert('Error al llamar selectDrone: ' + err.message);
+            }
           });
           
           grid.appendChild(celda);
@@ -380,6 +404,8 @@
           if (celdaData) {
             const celda = celdaData.celda;
             celda.classList.add('ocupada-dron');
+            // exponer el id del dron en el dataset para selección posterior
+            if (dron.id) celda.dataset.dronId = dron.id;
             
             const img = document.createElement('img');
             img.className = 'elemento-formacion';

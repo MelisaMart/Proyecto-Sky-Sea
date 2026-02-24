@@ -12,6 +12,7 @@ public class Jugador {
     private Equipo equipo;
     private boolean conectado;
     private String plantillaSeleccionada;
+    private String dronSeleccionado;  // almacena el dron elegido por el jugador
 
     private Porta porta;
     private final List<Dron> drones;
@@ -21,6 +22,7 @@ public class Jugador {
         this.nombre = normalizarNombre(nombre);
         this.conectado = true;
         this.plantillaSeleccionada = null;
+        this.dronSeleccionado = null;
         this.drones = new ArrayList<>();
     }
 
@@ -31,6 +33,7 @@ public class Jugador {
         this.equipo = equipo;
         this.conectado = conectado;
         this.plantillaSeleccionada = null;
+        this.dronSeleccionado = null;
         this.drones = new ArrayList<>();
     }
 
@@ -145,6 +148,12 @@ public class Jugador {
 
     public void setPlantillaSeleccionada(String plantillaSeleccionada) {
         this.plantillaSeleccionada = plantillaSeleccionada;
+    }
+
+    public String getDronSeleccionado() { return dronSeleccionado; }
+
+    public void setDronSeleccionado(String dronSeleccionado) {
+        this.dronSeleccionado = dronSeleccionado;
     }
 
     // ----------------- Helpers -----------------
