@@ -132,6 +132,24 @@ public class GameController {
         }
     }
 
+    @PostMapping("/move2")
+    public Object move2(@RequestParam String playerId,
+                        @RequestParam int fila,
+                        @RequestParam int col) {
+        try {
+            ServicioPartida.TemplateResponse r = servicioPartida.moverDron(playerId, fila, col);
+            java.util.Map<String,Object> out = new java.util.HashMap<>();
+            out.put("ok", r.ok);
+            out.put("estado", r.estado);
+            out.put("fila", fila);
+            out.put("col", col);
+            out.put("dronId", r.plantilla); // id del dron para debug
+            return out;
+        } catch (Exception e) {
+            return java.util.Map.of("error", e.getMessage());
+        }
+    }
+
     @PostMapping("/selectDrone2")
     public Object selectDrone2(@RequestParam String playerId, @RequestParam String dronId) {
         try {

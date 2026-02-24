@@ -185,6 +185,47 @@ public class ServicioPartida {
         return new TemplateResponse(true, "OK", jugador.getEquipo().name(), dronId);
     }
 
+    /**
+     * Mueve el dron seleccionado del jugador a una casilla de destino.
+     * Valida que exista selección previa y que el desplazamiento sea
+     * como máximo ±2 en cada eje (cuadrado 5x5). Devuelve ERROR en caso de
+     * fallo, OK en caso de éxito. Usa TemplateResponse para mantener el
+     * formato del servicio.
+     */
+    public TemplateResponse moverDron(String playerId, int filaDestino, int colDestino) {
+        Partida partida = dao.loadActiva();
+        Jugador jugador = partida.buscarJugadorPorId(playerId);
+        if (jugador == null) {
+            return new TemplateResponse(false, "ERROR", null, null);
+        }
+
+        String seleccion = jugador.getDronSeleccionado();
+        if (seleccion == null) {
+            return new TemplateResponse(false, "ERROR", null, null);
+        }
+
+        Dron dron = jugador.buscarDronPorId(seleccion);
+        if (dron == null) {
+            return new TemplateResponse(false, "ERROR", null, null);
+        }
+
+        int actualX = dron.getPosicion().getX();
+        int actualY = dron.getPosicion().getY();
+        int dx = colDestino - actualX;
+        int dy = filaDestino - actualY;
+
+        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+            return new TemplateResponse(false, "ERROR", null, null);
+        }
+
+        // puede existir validación adicional en Dron.mover, pero el rango ya
+        // se comprobó; usamos el método para mantener banderas internas.
+        dron.mover(dx, dy);
+        dao.save(partida);
+
+        return new TemplateResponse(true, "OK", jugador.getEquipo().name(), seleccion);
+    }
+
     public BoardResponse obtenerTablero(String playerId) {
         Partida partida = dao.loadActiva();
         Jugador jugador = partida.buscarJugadorPorId(playerId);

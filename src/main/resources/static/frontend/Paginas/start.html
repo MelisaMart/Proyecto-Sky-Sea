@@ -41,6 +41,72 @@
     const API = `${API_BASE}/api/game`;
     const playerId = localStorage.getItem('playerId');
 
+    // global helpers used by move logic
+    let celdas = [];                       // será llenado cuando se cree la cuadrícula
+
+    // --- selección y movimiento de dron ---
+    let selectedDron = null;               // {id,fila,col,cell}
+    let moveMode = false;
+    let moveCells = [];                    // array de {cell,handler}
+
+    function exitMoveMode() {
+      moveMode = false;
+      moveCells.forEach(({cell, handler}) => {
+        cell.classList.remove('movible');
+        cell.removeEventListener('click', handler);
+      });
+      moveCells = [];
+      // reactivar botón si hay dron seleccionado
+      if (btnMover) btnMover.disabled = !selectedDron;
+    }
+
+    function enterMoveMode() {
+      if (!selectedDron || moveMode) return;
+      moveMode = true;
+      const {fila: f0, col: c0} = selectedDron;
+      celdas.forEach(({celda, fila, col}) => {
+        const dx = col - c0;
+        const dy = fila - f0;
+        if (Math.abs(dx) <= 2 && Math.abs(dy) <= 2 && !(dx === 0 && dy === 0)) {
+          celda.classList.add('movible');
+          const handler = async () => {
+            try {
+              const resp = await fetch(
+                `${API}/move2?playerId=${encodeURIComponent(playerId)}&fila=${fila}&col=${col}`,
+                { method: 'POST' }
+              );
+              const data = await resp.json();
+              if (data.ok) {
+                // trasladar imagen y clases
+                const oldCell = selectedDron.cell;
+                const img = oldCell.querySelector('img');
+                if (img) celda.appendChild(img);
+                // mover identificador y clases
+                celda.dataset.dronId = selectedDron.id;
+                delete oldCell.dataset.dronId;
+                oldCell.classList.remove('ocupada-dron','seleccionado');
+                celda.classList.add('ocupada-dron','seleccionado');
+                selectedDron.cell = celda;
+                selectedDron.fila = fila;
+                selectedDron.col = col;
+                exitMoveMode();
+              } else {
+                alert('Movimiento inválido: ' + (data.estado || 'ERROR'));
+                // mantener el modo para intentar otra casilla
+              }
+            } catch (err) {
+              alert('Error al mover dron: ' + err.message);
+            }
+          };
+          celda.addEventListener('click', handler);
+          moveCells.push({cell: celda, handler});
+        }
+      });
+    }
+
+    // botón de movimiento será creado tras la cuadrícula
+    let btnMover = null;
+
     function estrategiaDefaultPorEquipo(equipo) {
       return equipo === 'AEREO' ? 'Aereo1' : 'Naval1';
     }
@@ -274,6 +340,15 @@
         return;
       }
 
+      // crear botón mover y colocarlo justo después del grid
+      btnMover = document.createElement('button');
+      btnMover.id = 'btnMover';
+      btnMover.textContent = 'Mover';
+      btnMover.disabled = true;
+      btnMover.style.margin = '10px';
+      btnMover.addEventListener('click', enterMoveMode);
+      grid.parentNode.insertBefore(btnMover, grid.nextSibling);
+
       if (!playerId) {
         window.location.href = '/frontend/Index.html';
         return;
@@ -281,7 +356,7 @@
 
       const filasTotal = 10;     
       const colsTotal = 20;      
-      const celdas = [];
+      celdas = [];
 
       for (let f = 0; f < filasTotal; f++) {
         for (let c = 0; c < colsTotal; c++) {
@@ -307,9 +382,19 @@
               });
               const data = await resp.json();
               if (data.ok) {
-                // visualmente marcar la celda seleccionada
+                // visualizar selección y guardar estado
                 document.querySelectorAll('.celda.seleccionado').forEach(el => el.classList.remove('seleccionado'));
                 celda.classList.add('seleccionado');
+                // actualizar variable global
+                selectedDron = {
+                  id: dronId,
+                  fila: parseInt(celda.dataset.fila),
+                  col: parseInt(celda.dataset.col),
+                  cell: celda
+                };
+                // activar botón mover y cancelar cualquier modo previo
+                exitMoveMode();
+                if (btnMover) btnMover.disabled = false;
               } else {
                 alert('No se pudo seleccionar el dron: ' + (data.estado || 'ERROR'));
               }

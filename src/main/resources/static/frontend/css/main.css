@@ -283,6 +283,15 @@ main {
     transform: rotate(90deg);
 }
 
+/* celdas a las que se puede mover el dron seleccionado */
+.celda.movible {
+    outline: 2px dashed orange;
+    cursor: pointer;
+}
+.celda.movible:hover {
+    background-color: rgba(255, 255, 0, 0.4);
+}
+
 /* Imagen del porta naval que ocupa múltiples celdas */
 .porta-naval-completo {
     width: 100%;
