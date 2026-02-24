@@ -72,7 +72,7 @@ public class GameController {
     public JoinResponseDTO join(@RequestParam String nombre,
                                 @RequestParam(required = false) String equipo) {
         ServicioPartida.JoinResponse r = servicioPartida.join(nombre, equipo);
-        return new JoinResponseDTO(r.idPartida, r.playerId, r.nombre, r.estadoPartida, r.equipo);
+        return new JoinResponseDTO(r.idPartida, r.playerId, r.nombre, r.estadoPartida, r.equipo, r.numeroJugador);
     }
 
     @GetMapping("/state2")
@@ -90,7 +90,8 @@ public class GameController {
                 "idPartida", partida.getIdPartida(),
                 "estadoPartida", partida.getEstado().name(),
                 "turnoDe", partida.getTurnoDe().name(),
-                "equipo", jugador.getEquipo().name()
+            "equipo", jugador.getEquipo().name(),
+            "numeroJugador", partida.numeroJugadorPorId(playerId)
         );
     }
 

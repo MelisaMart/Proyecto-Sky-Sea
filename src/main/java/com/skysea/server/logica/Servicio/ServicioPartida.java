@@ -29,18 +29,44 @@ public class ServicioPartida {
 
         String nombreLimpio = nombre == null ? "" : nombre.trim();
         if (nombreLimpio.isEmpty()) {
-            return new JoinResponse(null, null, "", "NOMBRE_INVALIDO", null);
+            return new JoinResponse(null, null, "", "NOMBRE_INVALIDO", null, 0);
         }
 
         Jugador existente = partida.buscarJugadorPorNombre(nombreLimpio);
         if (existente != null) {
+            String equipoNormalizadoExistente = equipoDeseado == null ? "" : equipoDeseado.trim().toUpperCase();
+            boolean esPrimerJugador = existente.getId().equals(partida.getPrimerJugadorId());
+            boolean aunNoEntroSegundoJugador = partida.getEstado() == EstadoPartida.ESPERANDO_RIVAL;
+
+            if (esPrimerJugador && aunNoEntroSegundoJugador && !equipoNormalizadoExistente.isEmpty()) {
+                if (!"NAVAL".equals(equipoNormalizadoExistente) && !"AEREO".equals(equipoNormalizadoExistente)) {
+                    return new JoinResponse(partida.getIdPartida(), existente.getId(), existente.getNombre(),
+                            "EQUIPO_INVALIDO", existente.getEquipo() != null ? existente.getEquipo().name() : null,
+                            partida.numeroJugadorPorId(existente.getId()));
+                }
+
+                if ("NAVAL".equals(equipoNormalizadoExistente)) {
+                    existente.asignarEquipo(Equipo.NAVAL);
+                    partida.clearJugador2();
+                    partida.setJugador1(existente);
+                } else {
+                    existente.asignarEquipo(Equipo.AEREO);
+                    partida.clearJugador1();
+                    partida.setJugador2(existente);
+                }
+
+                partida.setEstado(EstadoPartida.ESPERANDO_RIVAL);
+                dao.save(partida);
+            }
+
+            int numeroJugador = partida.numeroJugadorPorId(existente.getId());
             return new JoinResponse(partida.getIdPartida(), existente.getId(), existente.getNombre(),
-                    partida.getEstado().name(), existente.getEquipo() != null ? existente.getEquipo().name() : null);
+                partida.getEstado().name(), existente.getEquipo() != null ? existente.getEquipo().name() : null, numeroJugador);
         }
 
         // Si ya hay 2 jugadores, no deja entrar
         if (partida.getJugador1() != null && partida.getJugador2() != null) {
-            return new JoinResponse(partida.getIdPartida(), null, nombreLimpio, "OCUPADO", null);
+            return new JoinResponse(partida.getIdPartida(), null, nombreLimpio, "OCUPADO", null, 0);
         }
 
         // Crear jugador nuevo
@@ -51,11 +77,11 @@ public class ServicioPartida {
         // Primer jugador: debe elegir equipo explícitamente
         if (partida.getJugador1() == null && partida.getJugador2() == null) {
             if (equipoNormalizado.isEmpty()) {
-                return new JoinResponse(partida.getIdPartida(), null, nombreLimpio, "NECESITA_EQUIPO", null);
+                return new JoinResponse(partida.getIdPartida(), null, nombreLimpio, "NECESITA_EQUIPO", null, 0);
             }
 
             if (!"NAVAL".equals(equipoNormalizado) && !"AEREO".equals(equipoNormalizado)) {
-                return new JoinResponse(partida.getIdPartida(), null, nombreLimpio, "EQUIPO_INVALIDO", null);
+                return new JoinResponse(partida.getIdPartida(), null, nombreLimpio, "EQUIPO_INVALIDO", null, 0);
             }
 
             if ("NAVAL".equals(equipoNormalizado)) {
@@ -65,6 +91,8 @@ public class ServicioPartida {
                 nuevo.asignarEquipo(Equipo.AEREO);
                 partida.setJugador2(nuevo);
             }
+
+            partida.setPrimerJugadorId(nuevo.getId());
         } else {
             // Segundo jugador: se asigna automáticamente al equipo opuesto
             if (partida.getJugador1() == null) {
@@ -82,8 +110,10 @@ public class ServicioPartida {
 
         dao.save(partida);
 
+        int numeroJugador = partida.numeroJugadorPorId(nuevo.getId());
+
         return new JoinResponse(partida.getIdPartida(), nuevo.getId(), nuevo.getNombre(),
-                partida.getEstado().name(), nuevo.getEquipo().name());
+            partida.getEstado().name(), nuevo.getEquipo().name(), numeroJugador);
     }
 
     // Clase interna simple para que el Service no dependa del DTO de presentación
@@ -93,13 +123,15 @@ public class ServicioPartida {
         public final String nombre;
         public final String estadoPartida;
         public final String equipo;
+        public final int numeroJugador;
 
-        public JoinResponse(String idPartida, String playerId, String nombre, String estadoPartida, String equipo) {
+        public JoinResponse(String idPartida, String playerId, String nombre, String estadoPartida, String equipo, int numeroJugador) {
             this.idPartida = idPartida;
             this.playerId = playerId;
             this.nombre = nombre;
             this.estadoPartida = estadoPartida;
             this.equipo = equipo;
+            this.numeroJugador = numeroJugador;
         }
     }
 
