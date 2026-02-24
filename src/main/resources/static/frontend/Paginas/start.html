@@ -67,6 +67,10 @@
       celdas.forEach(({celda, fila, col}) => {
         const dx = col - c0;
         const dy = fila - f0;
+        // no permitir moverse a celdas ya ocupadas por un dron
+        if (celda.classList.contains('ocupada-dron') || celda.dataset.dronId) {
+          return;
+        }
         if (Math.abs(dx) <= 2 && Math.abs(dy) <= 2 && !(dx === 0 && dy === 0)) {
           celda.classList.add('movible');
           const handler = async () => {

@@ -218,6 +218,17 @@ public class ServicioPartida {
             return new TemplateResponse(false, "ERROR", null, null);
         }
 
+        // nueva validación: celda de destino libre
+        for (Jugador j : java.util.List.of(partida.getJugador1(), partida.getJugador2())) {
+            if (j == null) continue;
+            for (Dron d : j.getDrones()) {
+                if (d.getPosicion().getX() == colDestino && d.getPosicion().getY() == filaDestino) {
+                    // destino ya ocupado
+                    return new TemplateResponse(false, "ERROR", null, null);
+                }
+            }
+        }
+
         // puede existir validación adicional en Dron.mover, pero el rango ya
         // se comprobó; usamos el método para mantener banderas internas.
         dron.mover(dx, dy);
