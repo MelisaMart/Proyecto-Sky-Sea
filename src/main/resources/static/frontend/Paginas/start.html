@@ -33,10 +33,12 @@
         <div class="tablero-info">
           <div id="indicadorJugador" class="indicador-jugador" aria-live="polite"></div>
           <div id="indicadorTurno" class="indicador-turno" aria-live="polite"></div>
+          <div id="cronometroTurno" class="cronometro-turno" aria-live="polite"></div>
         </div>
         <div class="tablero-acciones">
           <button id="btnMover" class="game-btn boton-accion" type="button" disabled>MOVER</button>
           <button id="btnDisparar" class="game-btn boton-accion" type="button">DISPARAR</button>
+          <button id="btnPlay" class="game-btn boton-play" type="button" aria-label="Play" title="Play"></button>
         </div>
       </div>
       <div class="cuadricula" id="grid"></div>
@@ -54,9 +56,15 @@
     const playerId = localStorage.getItem('playerId');
     const indicadorJugador = document.getElementById('indicadorJugador');
     const indicadorTurno = document.getElementById('indicadorTurno');
+    const cronometroTurno = document.getElementById('cronometroTurno');
     const btnMover = document.getElementById('btnMover');
     let numeroJugadorActual = Number(localStorage.getItem('numeroJugador'));
     let movimientoConsumidoJugador1 = false;
+    const TIEMPO_TURNO_SEGUNDOS = 30;
+    let temporizadorTurnoId = null;
+    let segundosRestantesTurno = TIEMPO_TURNO_SEGUNDOS;
+    let claveTurnoActual = null;
+    let autoPasandoTurno = false;
 
     if (playerId && numeroJugadorActual === 1) {
       movimientoConsumidoJugador1 = localStorage.getItem(`movimientoConsumido_${playerId}`) === '1';
@@ -103,6 +111,62 @@
       }
 
       indicadorTurno.textContent = '';
+    }
+
+    function actualizarCronometroTurnoVisual() {
+      if (!cronometroTurno) return;
+      if (temporizadorTurnoId) {
+        cronometroTurno.textContent = `${Math.max(segundosRestantesTurno, 0)}s`;
+      } else {
+        cronometroTurno.textContent = '';
+      }
+    }
+
+    function detenerCronometroTurno() {
+      if (temporizadorTurnoId) {
+        clearInterval(temporizadorTurnoId);
+        temporizadorTurnoId = null;
+      }
+      segundosRestantesTurno = TIEMPO_TURNO_SEGUNDOS;
+      actualizarCronometroTurnoVisual();
+    }
+
+    async function pasarTurnoPorTimeout() {
+      if (autoPasandoTurno || !playerId) return;
+      autoPasandoTurno = true;
+      try {
+        if (typeof exitMoveMode === 'function') {
+          exitMoveMode();
+        }
+        document.querySelectorAll('.celda.seleccionado').forEach((el) => el.classList.remove('seleccionado'));
+        selectedDron = null;
+        if (btnMover) {
+          btnMover.disabled = true;
+        }
+
+        await apiRequest(`/endTurn2?playerId=${encodeURIComponent(playerId)}`, 'POST');
+        await refreshPartidaState();
+      } catch (error) {
+        console.warn('No se pudo pasar turno automáticamente:', error.message);
+      } finally {
+        autoPasandoTurno = false;
+      }
+    }
+
+    function iniciarCronometroTurno() {
+      detenerCronometroTurno();
+      segundosRestantesTurno = TIEMPO_TURNO_SEGUNDOS;
+      actualizarCronometroTurnoVisual();
+
+      temporizadorTurnoId = setInterval(async () => {
+        segundosRestantesTurno -= 1;
+        actualizarCronometroTurnoVisual();
+
+        if (segundosRestantesTurno <= 0) {
+          detenerCronometroTurno();
+          await pasarTurnoPorTimeout();
+        }
+      }, 1000);
     }
 
     const numeroGuardado = Number(localStorage.getItem('numeroJugador'));
@@ -250,9 +314,24 @@
         }
 
         if (state.turnoDe && state.equipo) {
-          actualizarIndicadorTurno(state.turnoDe === state.equipo);
+          const esMiTurno = state.turnoDe === state.equipo;
+          const nuevaClaveTurno = `${state.numeroTurno || ''}-${state.turnoDe || ''}`;
+          actualizarIndicadorTurno(esMiTurno);
+
+          if (esMiTurno) {
+            if (!temporizadorTurnoId || claveTurnoActual !== nuevaClaveTurno) {
+              iniciarCronometroTurno();
+            }
+          } else {
+            detenerCronometroTurno();
+          }
+
+          claveTurnoActual = nuevaClaveTurno;
+        } else {
+          detenerCronometroTurno();
         }
       } catch (error) {
+        detenerCronometroTurno();
         alert(`Sesión no válida o servidor no disponible: ${error.message}`);
         window.location.href = '/frontend/Index.html';
       }

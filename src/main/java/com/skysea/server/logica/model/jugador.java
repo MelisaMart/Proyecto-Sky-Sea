@@ -65,12 +65,7 @@ public class Jugador {
         return bombasDisponibles() == 0 && misilesDisponibles() == 0;
     }
 
-    /**
-     * Derrota típica:
-     * - Porta destruido, o
-     * - sin drones vivos, o
-     * - sin munición
-     */
+
     public boolean estaDerrotado(boolean considerarSinMunicion) {
         if (portaDestruido()) return true;
         if (sinDronesVivos()) return true;

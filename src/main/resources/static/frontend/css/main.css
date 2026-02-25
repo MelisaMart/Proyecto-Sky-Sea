@@ -51,9 +51,9 @@ main {
 /* Contenedor del logo principal */
 .titulo {
     position: absolute;
-    top: -60px;
+    top: -65px;
     left: 50%;
-    z-index: 1;
+    z-index: 2;
     transform: translateX(-50%);
 }
 
@@ -67,17 +67,18 @@ main {
 /* Contenedor general del menú */
 .menu-container {
     position: absolute;
-    top: 180px;
+    top: 50%;
     left: 50%;
     z-index: 1;
-    transform: translateX(-50%);
+    transform: translate(-50%, -50%);
 }
 
 /* Caja visual del menú */
 .menu-box {
     position: relative;
-    width: 360px;
-    padding: 150px 35px 20px;
+    width: 320px;
+    min-height: 100px;
+    padding: 150px 30px 30px;
     text-align: center;
     background-color: #000000;
     border-radius: 20px;
@@ -281,6 +282,29 @@ main {
     border-radius: 12px;
 }
 
+.boton-play {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    font-size: 0;
+    line-height: 0;
+}
+
+.boton-play::before {
+    content: '';
+    width: 0;
+    height: 0;
+    margin-left: 2px;
+    border-top: 7px solid transparent;
+    border-bottom: 7px solid transparent;
+    border-left: 12px solid currentColor;
+}
+
 .tablero-acciones .game-btn:disabled {
     opacity: 0.65;
     cursor: not-allowed;
@@ -350,12 +374,25 @@ main {
         -1px 1px 0 #000000;
 }
 
+.cronometro-turno {
+    min-height: 16px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 11px;
+    color: #ffd700;
+    text-align: center;
+    text-shadow:
+        1px 1px 0 #000000,
+        -1px -1px 0 #000000,
+        1px -1px 0 #000000,
+        -1px 1px 0 #000000;
+}
+
 /* Celda individual de la cuadrícula */
 .celda {
     width: 100%;
     height: 100%;
     box-sizing: border-box;
-    border: 1px solid #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.25);
     position: relative;
     display: flex;
     align-items: center;
@@ -384,7 +421,7 @@ main {
 
 /* Celda cuyo dron ha sido seleccionado por el jugador */
 .celda.seleccionado {
-    outline: 3px solid yellow;
+    outline: 3px solid rgb(108, 240, 75);
 }
 
 /* Rotación para drones que apuntan hacia la derecha */
@@ -394,11 +431,11 @@ main {
 
 /* celdas a las que se puede mover el dron seleccionado */
 .celda.movible {
-    outline: 2px dashed orange;
+    outline: 2px dashed rgba(20, 107, 8, 0.808);
     cursor: pointer;
 }
 .celda.movible:hover {
-    background-color: rgba(255, 255, 0, 0.4);
+    background-color: rgba(7, 143, 37, 0.342);
 }
 
 /* Imagen del porta naval que ocupa múltiples celdas */
@@ -618,6 +655,17 @@ main {
 .modal-estrategia {
     width: 90%;
     max-width: 600px;
+}
+
+.cronometro-plantilla {
+    margin: 6px 0 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 15px;
+    color: #ffd700;
+    text-align: center;
 }
 
 /* Contenedor de imágenes de estrategias */
