@@ -231,6 +231,11 @@ public class ServicioPartida {
             return new TemplateResponse(false, "ERROR", null, null);
         }
 
+        // regla adicional: cada turno sólo una acción
+        if (jugador.getAccionTurno() != Jugador.AccionTurno.NINGUNA) {
+            return new TemplateResponse(false, "ACCION_YA_REALIZADA", null, null);
+        }
+
         String seleccion = jugador.getDronSeleccionado();
         if (seleccion == null) {
             return new TemplateResponse(false, "ERROR", null, null);
@@ -264,6 +269,8 @@ public class ServicioPartida {
         // puede existir validación adicional en Dron.mover, pero el rango ya
         // se comprobó; usamos el método para mantener banderas internas.
         dron.mover(dx, dy);
+        // ya consumió su acción de turno
+        jugador.setAccionTurno(Jugador.AccionTurno.MOVIO);
         dao.save(partida);
 
         return new TemplateResponse(true, "OK", jugador.getEquipo().name(), seleccion);
@@ -419,6 +426,14 @@ public class ServicioPartida {
     if (!partida.esTurnoDe(playerId)) {
         throw new IllegalStateException("NO_ES_TU_TURNO");
     }
+
+    // si todo está bien, limpiamos la selección de dron del jugador que
+    // acaba de terminar. la regla de negocio que prohíbe cambiar de dron
+    // entre turnos depende de este campo, así que debe restablecerse.
+    j.setDronSeleccionado(null);
+    // además se reinicia el 'contador' de acción para que en su próximo turno
+    // pueda mover o disparar de nuevo.
+    j.setAccionTurno(Jugador.AccionTurno.NINGUNA);
 
     // Cambiar turno
     if (partida.getTurnoDe() == Equipo.NAVAL) {

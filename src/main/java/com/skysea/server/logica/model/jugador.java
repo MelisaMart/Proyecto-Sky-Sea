@@ -7,12 +7,17 @@ import java.util.UUID;
 
 public class Jugador {
 
+    public enum AccionTurno { NINGUNA, MOVIO, DISPARO }
+
     private final String id;
     private String nombre;
     private Equipo equipo;
     private boolean conectado;
     private String plantillaSeleccionada;
     private String dronSeleccionado;  // almacena el dron elegido por el jugador
+
+    // se utiliza para impedir más de una acción por turno (mover o disparar)
+    private AccionTurno accionTurno;
 
     private Porta porta;
     private final List<Dron> drones;
@@ -23,6 +28,7 @@ public class Jugador {
         this.conectado = true;
         this.plantillaSeleccionada = null;
         this.dronSeleccionado = null;
+        this.accionTurno = AccionTurno.NINGUNA;
         this.drones = new ArrayList<>();
     }
 
@@ -34,6 +40,7 @@ public class Jugador {
         this.conectado = conectado;
         this.plantillaSeleccionada = null;
         this.dronSeleccionado = null;
+        this.accionTurno = AccionTurno.NINGUNA;
         this.drones = new ArrayList<>();
     }
 
@@ -149,6 +156,15 @@ public class Jugador {
 
     public void setDronSeleccionado(String dronSeleccionado) {
         this.dronSeleccionado = dronSeleccionado;
+    }
+
+    /* acción realizada en el turno actual; utilizado por el servicio de partida */
+    public AccionTurno getAccionTurno() {
+        return accionTurno;
+    }
+
+    public void setAccionTurno(AccionTurno accionTurno) {
+        this.accionTurno = accionTurno;
     }
 
     // ----------------- Helpers -----------------

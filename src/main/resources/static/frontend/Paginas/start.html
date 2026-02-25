@@ -59,19 +59,14 @@
     const cronometroTurno = document.getElementById('cronometroTurno');
     const btnMover = document.getElementById('btnMover');
     let numeroJugadorActual = Number(localStorage.getItem('numeroJugador'));
-    let movimientoConsumidoJugador1 = false;
     const TIEMPO_TURNO_SEGUNDOS = 30;
     let temporizadorTurnoId = null;
     let segundosRestantesTurno = TIEMPO_TURNO_SEGUNDOS;
     let claveTurnoActual = null;
     let autoPasandoTurno = false;
 
-    if (playerId && numeroJugadorActual === 1) {
-      movimientoConsumidoJugador1 = localStorage.getItem(`movimientoConsumido_${playerId}`) === '1';
-      if (movimientoConsumidoJugador1 && btnMover) {
-        btnMover.disabled = true;
-      }
-    }
+    // el backend controlarÃ¡ si el jugador ya realizÃ³ una acciÃ³n en el turno,
+    // el frontend no guarda este estado en localStorage.
 
     function actualizarIndicadorJugador(numeroJugador) {
       if (!indicadorJugador) return;
@@ -131,23 +126,23 @@
       actualizarCronometroTurnoVisual();
     }
 
-    async function pasarTurnoPorTimeout() {
+    // entrega: función genérica para terminar el turno. Se puede invocar
+    // desde el timeout o desde un botón manual. Retorna la respuesta si hay OK
+    // y lanza error en caso contrario.
+    async function pasarTurno() {
       if (autoPasandoTurno || !playerId) return;
       autoPasandoTurno = true;
       try {
-        if (typeof exitMoveMode === 'function') {
-          exitMoveMode();
-        }
+        const data = await apiRequest(`/endTurn2?playerId=${encodeURIComponent(playerId)}`, 'POST');
+        // limpieza de interfaz al completar el cambio de turno
+        if (typeof exitMoveMode === 'function') exitMoveMode();
+        if (typeof exitShootMode === 'function') exitShootMode();
         document.querySelectorAll('.celda.seleccionado').forEach((el) => el.classList.remove('seleccionado'));
         selectedDron = null;
-        if (btnMover) {
-          btnMover.disabled = true;
-        }
-
-        await apiRequest(`/endTurn2?playerId=${encodeURIComponent(playerId)}`, 'POST');
+        if (btnMover) btnMover.disabled = true;
+        if (btnDisparar) btnDisparar.disabled = true;
         await refreshPartidaState();
-      } catch (error) {
-        console.warn('No se pudo pasar turno automáticamente:', error.message);
+        return data;
       } finally {
         autoPasandoTurno = false;
       }
@@ -164,7 +159,7 @@
 
         if (segundosRestantesTurno <= 0) {
           detenerCronometroTurno();
-          await pasarTurnoPorTimeout();
+          await pasarTurno();
         }
       }, 1000);
     }
@@ -193,11 +188,7 @@
       moveCells = [];
       // reactivar botón si hay dron seleccionado
       if (btnMover) {
-        if (numeroJugadorActual === 1 && movimientoConsumidoJugador1) {
-          btnMover.disabled = true;
-        } else {
-          btnMover.disabled = !selectedDron;
-        }
+        btnMover.disabled = !selectedDron;
       }
     }
 
@@ -235,13 +226,8 @@
                 selectedDron.fila = fila;
                 selectedDron.col = col;
 
-                if (numeroJugadorActual === 1) {
-                  movimientoConsumidoJugador1 = true;
-                  if (playerId) {
-                    localStorage.setItem(`movimientoConsumido_${playerId}`, '1');
-                  }
-                }
-
+                // consumió acción: no le permitimos mover otra vez
+                if (btnMover) btnMover.disabled = true;
                 exitMoveMode();
               } else {
                 alert('Movimiento inválido: ' + (data.estado || 'ERROR'));
@@ -308,25 +294,33 @@
           localStorage.setItem('numeroJugador', String(state.numeroJugador));
           actualizarIndicadorJugador(state.numeroJugador);
 
-          if (state.numeroJugador === 1 && playerId) {
-            movimientoConsumidoJugador1 = localStorage.getItem(`movimientoConsumido_${playerId}`) === '1';
-          }
-        }
+          if (state.turnoDe && state.equipo) {
+            const esMiTurno = state.turnoDe === state.equipo;
+            const nuevaClaveTurno = `${state.numeroTurno || ''}-${state.turnoDe || ''}`;
+            actualizarIndicadorTurno(esMiTurno);
 
-        if (state.turnoDe && state.equipo) {
-          const esMiTurno = state.turnoDe === state.equipo;
-          const nuevaClaveTurno = `${state.numeroTurno || ''}-${state.turnoDe || ''}`;
-          actualizarIndicadorTurno(esMiTurno);
-
-          if (esMiTurno) {
-            if (!temporizadorTurnoId || claveTurnoActual !== nuevaClaveTurno) {
-              iniciarCronometroTurno();
+            // controlar habilitación de botón mover
+            if (btnMover) {
+              if (!esMiTurno) {
+                btnMover.disabled = true;
+              } else if (claveTurnoActual !== nuevaClaveTurno) {
+                // acabo de recibir un nuevo turno propio
+                btnMover.disabled = !selectedDron;
+              }
             }
+
+            if (esMiTurno) {
+              if (!temporizadorTurnoId || claveTurnoActual !== nuevaClaveTurno) {
+                iniciarCronometroTurno();
+              }
+            } else {
+              detenerCronometroTurno();
+            }
+
+            claveTurnoActual = nuevaClaveTurno;
           } else {
             detenerCronometroTurno();
           }
-
-          claveTurnoActual = nuevaClaveTurno;
         } else {
           detenerCronometroTurno();
         }
@@ -522,6 +516,21 @@
       if (btnMover) {
         btnMover.addEventListener('click', enterMoveMode);
       }
+      // handler botón flecha "terminar turno"
+      const btnPlay = document.getElementById('btnPlay');
+      if (btnPlay) {
+        btnPlay.addEventListener('click', async () => {
+          if (!playerId) {
+            alert('Falta playerId');
+            return;
+          }
+          try {
+            await pasarTurno();
+          } catch (err) {
+            alert(err.message);
+          }
+        });
+      }
 
       if (!playerId) {
         window.location.href = '/frontend/Index.html';
@@ -569,11 +578,7 @@
                 // activar botón mover y cancelar cualquier modo previo
                 exitMoveMode();
                 if (btnMover) {
-                  if (numeroJugadorActual === 1 && movimientoConsumidoJugador1) {
-                    btnMover.disabled = true;
-                  } else {
-                    btnMover.disabled = false;
-                  }
+                  btnMover.disabled = false;
                 }
               } else {
                 alert('No se pudo seleccionar el dron: ' + (data.estado || 'ERROR'));
