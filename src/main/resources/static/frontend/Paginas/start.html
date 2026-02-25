@@ -28,7 +28,19 @@
 
   <!-- Contenido principal con la cuadrícula del juego -->
   <main>
-    <div class="cuadricula" id="grid"></div>
+    <div class="tablero-wrapper">
+      <div class="tablero-header">
+        <div class="tablero-info">
+          <div id="indicadorJugador" class="indicador-jugador" aria-live="polite"></div>
+          <div id="indicadorTurno" class="indicador-turno" aria-live="polite"></div>
+        </div>
+        <div class="tablero-acciones">
+          <button id="btnMover" class="game-btn boton-accion" type="button" disabled>MOVER</button>
+          <button id="btnDisparar" class="game-btn boton-accion" type="button">DISPARAR</button>
+        </div>
+      </div>
+      <div class="cuadricula" id="grid"></div>
+    </div>
   </main>
 
   <!-- Pie de página reservado -->
@@ -40,6 +52,65 @@
       : '';
     const API = `${API_BASE}/api/game`;
     const playerId = localStorage.getItem('playerId');
+    const indicadorJugador = document.getElementById('indicadorJugador');
+    const indicadorTurno = document.getElementById('indicadorTurno');
+    const btnMover = document.getElementById('btnMover');
+    let numeroJugadorActual = Number(localStorage.getItem('numeroJugador'));
+    let movimientoConsumidoJugador1 = false;
+
+    if (playerId && numeroJugadorActual === 1) {
+      movimientoConsumidoJugador1 = localStorage.getItem(`movimientoConsumido_${playerId}`) === '1';
+      if (movimientoConsumidoJugador1 && btnMover) {
+        btnMover.disabled = true;
+      }
+    }
+
+    function actualizarIndicadorJugador(numeroJugador) {
+      if (!indicadorJugador) return;
+
+      indicadorJugador.classList.remove('jugador-1', 'jugador-2');
+
+      if (numeroJugador === 1) {
+        indicadorJugador.textContent = 'JUGADOR 1';
+        indicadorJugador.classList.add('jugador-1');
+        return;
+      }
+
+      if (numeroJugador === 2) {
+        indicadorJugador.textContent = 'JUGADOR 2';
+        indicadorJugador.classList.add('jugador-2');
+        return;
+      }
+
+      indicadorJugador.textContent = 'JUGADOR';
+    }
+
+    function actualizarIndicadorTurno(esMiTurno) {
+      if (!indicadorTurno) return;
+
+      indicadorTurno.classList.remove('tu-turno', 'otro-turno');
+
+      if (esMiTurno === true) {
+        indicadorTurno.textContent = 'TU TURNO';
+        indicadorTurno.classList.add('tu-turno');
+        return;
+      }
+
+      if (esMiTurno === false) {
+        indicadorTurno.textContent = 'ES EL TURNO DEL OTRO JUGADOR';
+        indicadorTurno.classList.add('otro-turno');
+        return;
+      }
+
+      indicadorTurno.textContent = '';
+    }
+
+    const numeroGuardado = Number(localStorage.getItem('numeroJugador'));
+    if (numeroGuardado === 1 || numeroGuardado === 2) {
+      actualizarIndicadorJugador(numeroGuardado);
+    } else {
+      actualizarIndicadorJugador(null);
+    }
 
     // global helpers used by move logic
     let celdas = [];                       // será llenado cuando se cree la cuadrícula
@@ -57,7 +128,13 @@
       });
       moveCells = [];
       // reactivar botón si hay dron seleccionado
-      if (btnMover) btnMover.disabled = !selectedDron;
+      if (btnMover) {
+        if (numeroJugadorActual === 1 && movimientoConsumidoJugador1) {
+          btnMover.disabled = true;
+        } else {
+          btnMover.disabled = !selectedDron;
+        }
+      }
     }
 
     function enterMoveMode() {
@@ -93,6 +170,14 @@
                 selectedDron.cell = celda;
                 selectedDron.fila = fila;
                 selectedDron.col = col;
+
+                if (numeroJugadorActual === 1) {
+                  movimientoConsumidoJugador1 = true;
+                  if (playerId) {
+                    localStorage.setItem(`movimientoConsumido_${playerId}`, '1');
+                  }
+                }
+
                 exitMoveMode();
               } else {
                 alert('Movimiento inválido: ' + (data.estado || 'ERROR'));
@@ -107,9 +192,6 @@
         }
       });
     }
-
-    // botón de movimiento será creado tras la cuadrícula
-    let btnMover = null;
 
     function estrategiaDefaultPorEquipo(equipo) {
       return equipo === 'AEREO' ? 'Aereo1' : 'Naval1';
@@ -155,6 +237,20 @@
 
         if (state.equipo) {
           localStorage.setItem('equipoAsignado', state.equipo);
+        }
+
+        if (state.numeroJugador === 1 || state.numeroJugador === 2) {
+          numeroJugadorActual = state.numeroJugador;
+          localStorage.setItem('numeroJugador', String(state.numeroJugador));
+          actualizarIndicadorJugador(state.numeroJugador);
+
+          if (state.numeroJugador === 1 && playerId) {
+            movimientoConsumidoJugador1 = localStorage.getItem(`movimientoConsumido_${playerId}`) === '1';
+          }
+        }
+
+        if (state.turnoDe && state.equipo) {
+          actualizarIndicadorTurno(state.turnoDe === state.equipo);
         }
       } catch (error) {
         alert(`Sesión no válida o servidor no disponible: ${error.message}`);
@@ -344,14 +440,9 @@
         return;
       }
 
-      // crear botón mover y colocarlo justo después del grid
-      btnMover = document.createElement('button');
-      btnMover.id = 'btnMover';
-      btnMover.textContent = 'Mover';
-      btnMover.disabled = true;
-      btnMover.style.margin = '10px';
-      btnMover.addEventListener('click', enterMoveMode);
-      grid.parentNode.insertBefore(btnMover, grid.nextSibling);
+      if (btnMover) {
+        btnMover.addEventListener('click', enterMoveMode);
+      }
 
       if (!playerId) {
         window.location.href = '/frontend/Index.html';
@@ -398,7 +489,13 @@
                 };
                 // activar botón mover y cancelar cualquier modo previo
                 exitMoveMode();
-                if (btnMover) btnMover.disabled = false;
+                if (btnMover) {
+                  if (numeroJugadorActual === 1 && movimientoConsumidoJugador1) {
+                    btnMover.disabled = true;
+                  } else {
+                    btnMover.disabled = false;
+                  }
+                }
               } else {
                 alert('No se pudo seleccionar el dron: ' + (data.estado || 'ERROR'));
               }

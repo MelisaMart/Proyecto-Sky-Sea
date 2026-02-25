@@ -212,7 +212,8 @@ main {
     height: 100%;
     display: block;
     object-fit: cover;
-    object-position: center;
+    object-position: 62% center;
+    transform: scale(1.20);
 }
 
 /* Posición del logo en pantalla start */
@@ -237,8 +238,116 @@ main {
     grid-auto-rows: calc(500px / 10);
     gap: 0;
     width: 1000px;
-    margin: 40px auto;
+    margin: 6px auto 0;
     justify-content: center;
+}
+
+.tablero-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-top: 22px;
+}
+
+.tablero-header {
+    width: 1000px;
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    gap: 16px;
+}
+
+.tablero-info {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.tablero-acciones {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.boton-accion {
+    padding: 10px 16px;
+    font-size: 11px;
+    border-radius: 12px;
+}
+
+.tablero-acciones .game-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.tablero-acciones .game-btn:disabled:hover {
+    color: #ffffff;
+    background: #000000;
+    box-shadow: none;
+}
+
+/* Jugador 1 o 2 */
+.indicador-jugador {
+    min-height: 26px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 24px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+.indicador-jugador.jugador-1 {
+    color: #ff8c00;
+    text-shadow:
+        2px 2px 0 #000000,
+        -2px -2px 0 #000000,
+        2px -2px 0 #000000,
+        -2px 2px 0 #000000,
+        0 0 10px rgba(0, 0, 0, 0.9);
+}
+
+.indicador-jugador.jugador-2 {
+    color: #66d9ff;
+    text-shadow:
+        2px 2px 0 #000000,
+        -2px -2px 0 #000000,
+        2px -2px 0 #000000,
+        -2px 2px 0 #000000,
+        0 0 10px rgba(0, 0, 0, 0.9);
+}
+
+/* Turno del jugador */
+.indicador-turno {
+    min-height: 18px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 12px;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+.indicador-turno.tu-turno {
+    color: #ffd700;
+    text-shadow:
+        1px 1px 0 #000000,
+        -1px -1px 0 #000000,
+        1px -1px 0 #000000,
+        -1px 1px 0 #000000;
+}
+
+.indicador-turno.otro-turno {
+    color: #ffffff;
+    text-shadow:
+        1px 1px 0 #000000,
+        -1px -1px 0 #000000,
+        1px -1px 0 #000000,
+        -1px 1px 0 #000000;
 }
 
 /* Celda individual de la cuadrícula */

@@ -10,6 +10,7 @@ public class Partida {
 
     private Jugador jugador1;
     private Jugador jugador2;
+    private String primerJugadorId;
 
     private int numeroTurno;
     private Equipo turnoDe;
@@ -58,6 +59,14 @@ public class Partida {
         return null;
     }
 
+    public int numeroJugadorPorId(String playerId) {
+        if (playerId == null) return 0;
+        if (primerJugadorId == null) return 0;
+        Jugador jugador = buscarJugadorPorId(playerId);
+        if (jugador == null) return 0;
+        return primerJugadorId.equals(playerId) ? 1 : 2;
+    }
+
     public boolean esTurnoDe(String playerId) {
         Jugador j = buscarJugadorPorId(playerId);
         return j != null && j.getEquipo() == this.turnoDe;
@@ -71,6 +80,22 @@ public class Partida {
 
     public void setJugador2(Jugador jugador2) {
         this.jugador2 = Objects.requireNonNull(jugador2);
+    }
+
+    public void clearJugador1() {
+        this.jugador1 = null;
+    }
+
+    public void clearJugador2() {
+        this.jugador2 = null;
+    }
+
+    public void setPrimerJugadorId(String primerJugadorId) {
+        this.primerJugadorId = Objects.requireNonNull(primerJugadorId);
+    }
+
+    public String getPrimerJugadorId() {
+        return primerJugadorId;
     }
 
     // ----------------- Getters/Setters -----------------

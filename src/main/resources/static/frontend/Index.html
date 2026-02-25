@@ -173,6 +173,7 @@
       localStorage.removeItem('idPartida');
       localStorage.removeItem('equipoAsignado');
       localStorage.removeItem('estrategiaSeleccionada');
+      localStorage.removeItem('numeroJugador');
     }
 
     let nombrePendiente = '';
@@ -302,6 +303,9 @@
           localStorage.setItem('idPartida', join.idPartida || '');
           localStorage.setItem('equipoAsignado', join.equipo || '');
           localStorage.setItem('equipoSeleccionado', join.equipo || '');
+          if (join.numeroJugador === 1 || join.numeroJugador === 2) {
+            localStorage.setItem('numeroJugador', String(join.numeroJugador));
+          }
 
           nombrePendiente = '';
           cerrarModalNombre();
@@ -370,6 +374,9 @@
           localStorage.setItem('idPartida', join.idPartida || '');
           localStorage.setItem('equipoAsignado', join.equipo || equipo);
           localStorage.setItem('equipoSeleccionado', join.equipo || equipo);
+          if (join.numeroJugador === 1 || join.numeroJugador === 2) {
+            localStorage.setItem('numeroJugador', String(join.numeroJugador));
+          }
 
           nombrePendiente = '';
           cerrarModalEquipo();
