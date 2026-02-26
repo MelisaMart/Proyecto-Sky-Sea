@@ -128,7 +128,7 @@
   </div>
 
   <script>
-    const API_BASE = (window.location.protocol === 'file:' || window.location.port !== '8080')
+    const API_BASE = (window.location.protocol === 'file:')
       ? 'http://localhost:8080'
       : '';
     const API = `${API_BASE}/api/game`;
@@ -233,6 +233,7 @@
     // ====== LÓGICA DEL MODAL DE INGRESO DE NOMBRE ======
     const btnStart = document.getElementById('btnStart');
     const modalNombre = document.getElementById('modalNombre');
+    const modalNombreBox = modalNombre ? modalNombre.querySelector('.modal-box') : null;
     const inputNombre = document.getElementById('inputNombre');
     const aceptarNombre = document.getElementById('aceptarNombre');
     const cancelarNombre = document.getElementById('cancelarNombre');
@@ -242,8 +243,18 @@
       btnStart.addEventListener('click', function () {
         modalNombre.setAttribute('aria-hidden', 'false');
         modalNombre.classList.add('activo');
-        inputNombre.focus();
+        inputNombre.disabled = false;
+        inputNombre.readOnly = false;
+        requestAnimationFrame(() => {
+          inputNombre.focus();
+        });
       });
+
+      if (modalNombreBox) {
+        modalNombreBox.addEventListener('click', (evento) => {
+          evento.stopPropagation();
+        });
+      }
 
       // Cerrar el modal de nombre sin guardar
       function cerrarModalNombre() {
@@ -272,10 +283,8 @@
       // Enviar el nombre y registra jugador en backend
       aceptarNombre.addEventListener('click', async () => {
         const nombre = inputNombre.value.trim();
-
-        // Validar que el nombre no esté vacío
-        if (nombre.length === 0) {
-          alert('Por favor, ingresa tu nombre para continuar');
+        if (!nombreValido(nombre)) {
+          alert('El nombre debe ser único, mínimo 3 caracteres, sin espacios ni símbolos especiales.');
           inputNombre.focus();
           return;
         }
@@ -523,6 +532,12 @@
         detenerTimerEstrategia();
         navegarConEstrategia('Aereo3');
       });
+    }
+
+    // Validar nombre único antes de enviar join
+    function nombreValido(nombre) {
+      // Solo letras, números y guiones, mínimo 3 caracteres
+      return /^[a-zA-Z0-9\-]{3,}$/.test(nombre);
     }
   </script>
 </body>
