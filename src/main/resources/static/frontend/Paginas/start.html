@@ -13,7 +13,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 </head>
 
-<body>
+<body class="pagina-start">
   <!-- Fondo -->
   <div class="fondoStart">
     <img src="/frontend/Imagenes/Fondo/FondoVistaDeArriba.png" alt="Fondo de la partida">
@@ -35,21 +35,65 @@
           <div id="indicadorTurno" class="indicador-turno" aria-live="polite"></div>
           <div id="cronometroTurno" class="cronometro-turno" aria-live="polite"></div>
         </div>
-        <div class="tablero-acciones">
-          <button id="btnMover" class="game-btn boton-accion" type="button" disabled>MOVER</button>
-          <button id="btnDisparar" class="game-btn boton-accion" type="button">DISPARAR</button>
-          <button id="btnPlay" class="game-btn boton-play" type="button" aria-label="Play" title="Play"></button>
-        </div>
       </div>
       <div class="cuadricula" id="grid"></div>
+      <div class="tablero-acciones">
+        <button id="btnMover" class="game-btn boton-accion" type="button" disabled>MOVER</button>
+        <button id="btnDisparar" class="game-btn boton-accion" type="button">DISPARAR</button>
+        <button id="btnPlay" class="game-btn boton-play" type="button" aria-label="Play" title="Play"></button>
+      </div>
     </div>
   </main>
+
+  <section class="hud-inferior" aria-live="polite">
+    <div class="hud-bloque hud-tu-equipo">
+      <div class="hud-encabezado">
+        <div class="hud-titulo" id="hudTituloTuEquipo">TU EQUIPO</div>
+        <div class="hud-subtitulo" id="hudTipoTuEquipo">-</div>
+      </div>
+      <div class="hud-metricas">
+        <div class="hud-metrica">
+          <img id="hudIconDronTu" class="hud-icono" src="/frontend/Imagenes/ContadorDeVidas/DronAereoTuEquipo.png" alt="Drones tu equipo">
+          <span id="hudDronesTu" class="hud-valor">-</span>
+        </div>
+        <div class="hud-metrica">
+          <img id="hudIconMunicionTu" class="hud-icono" src="/frontend/Imagenes/ContadorDeVidas/BombaTuEquipo.png" alt="Munición tu equipo">
+          <span id="hudMunicionTu" class="hud-valor">-</span>
+        </div>
+        <div class="hud-metrica">
+          <img id="hudIconPortaTu" class="hud-icono hud-icono-porta" src="/frontend/Imagenes/ContadorDeVidas/PortaTuEquipo.png" alt="Vida porta tu equipo">
+          <span id="hudVidaTu" class="hud-valor">-/-</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="hud-bloque hud-equipo-enemigo">
+      <div class="hud-encabezado">
+        <div class="hud-titulo" id="hudTituloEnemigo">EQUIPO ENEMIGO</div>
+        <div class="hud-subtitulo" id="hudTipoEnemigo">-</div>
+      </div>
+      <div class="hud-metricas">
+        <div class="hud-metrica">
+          <img id="hudIconDronEnemigo" class="hud-icono" src="/frontend/Imagenes/ContadorDeVidas/DronAereoEquipoEnemigo.png" alt="Drones equipo enemigo">
+          <span id="hudDronesEnemigo" class="hud-valor">-</span>
+        </div>
+        <div class="hud-metrica">
+          <img id="hudIconMunicionEnemigo" class="hud-icono" src="/frontend/Imagenes/ContadorDeVidas/BombaEquipoEnemigo.png" alt="Munición equipo enemigo">
+          <span id="hudMunicionEnemigo" class="hud-valor">-</span>
+        </div>
+        <div class="hud-metrica">
+          <img id="hudIconPortaEnemigo" class="hud-icono hud-icono-porta" src="/frontend/Imagenes/ContadorDeVidas/PortaEquipoEnemigo.png" alt="Vida porta equipo enemigo">
+          <span id="hudVidaEnemigo" class="hud-valor">-/-</span>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <!-- Pie de página reservado -->
   <footer class="footer"></footer>
 
   <script>
-    const API_BASE = (window.location.protocol === 'file:' || window.location.port !== '8080')
+    const API_BASE = (window.location.protocol === 'file:')
       ? 'http://localhost:8080'
       : '';
     const API = `${API_BASE}/api/game`;
@@ -58,6 +102,20 @@
     const indicadorTurno = document.getElementById('indicadorTurno');
     const cronometroTurno = document.getElementById('cronometroTurno');
     const btnMover = document.getElementById('btnMover');
+    const hudTipoTuEquipo = document.getElementById('hudTipoTuEquipo');
+    const hudTipoEnemigo = document.getElementById('hudTipoEnemigo');
+    const hudDronesTu = document.getElementById('hudDronesTu');
+    const hudDronesEnemigo = document.getElementById('hudDronesEnemigo');
+    const hudMunicionTu = document.getElementById('hudMunicionTu');
+    const hudMunicionEnemigo = document.getElementById('hudMunicionEnemigo');
+    const hudVidaTu = document.getElementById('hudVidaTu');
+    const hudVidaEnemigo = document.getElementById('hudVidaEnemigo');
+    const hudIconDronTu = document.getElementById('hudIconDronTu');
+    const hudIconDronEnemigo = document.getElementById('hudIconDronEnemigo');
+    const hudIconMunicionTu = document.getElementById('hudIconMunicionTu');
+    const hudIconMunicionEnemigo = document.getElementById('hudIconMunicionEnemigo');
+    const hudIconPortaTu = document.getElementById('hudIconPortaTu');
+    const hudIconPortaEnemigo = document.getElementById('hudIconPortaEnemigo');
     let numeroJugadorActual = Number(localStorage.getItem('numeroJugador'));
     const TIEMPO_TURNO_SEGUNDOS = 30;
     let temporizadorTurnoId = null;
@@ -100,7 +158,7 @@
       }
 
       if (esMiTurno === false) {
-        indicadorTurno.textContent = 'ES EL TURNO DEL OTRO JUGADOR';
+        indicadorTurno.textContent = 'TURNO ENEMIGO';
         indicadorTurno.classList.add('otro-turno');
         return;
       }
@@ -253,6 +311,93 @@
       return estrategia.startsWith('Naval');
     }
 
+    function equipoContrario(equipo) {
+      return equipo === 'AEREO' ? 'NAVAL' : 'AEREO';
+    }
+
+    function nombreEquipo(equipo) {
+      return equipo === 'AEREO' ? 'Aéreo' : 'Naval';
+    }
+
+    function impactosMaximosPorta(equipo) {
+      return equipo === 'AEREO' ? 6 : 3;
+    }
+
+    function obtenerRutasIconosPorEquipo(equipo, esTuEquipo) {
+      if (equipo === 'AEREO') {
+        return {
+          dron: esTuEquipo
+            ? '/frontend/Imagenes/ContadorDeVidas/DronAereoTuEquipo.png'
+            : '/frontend/Imagenes/ContadorDeVidas/DronAereoEquipoEnemigo.png',
+          municion: esTuEquipo
+            ? '/frontend/Imagenes/ContadorDeVidas/BombaTuEquipo.png'
+            : '/frontend/Imagenes/ContadorDeVidas/BombaEquipoEnemigo.png',
+          porta: esTuEquipo
+            ? '/frontend/Imagenes/ContadorDeVidas/PortaTuEquipo.png'
+            : '/frontend/Imagenes/ContadorDeVidas/PortaEquipoEnemigo.png'
+        };
+      }
+
+      return {
+        dron: esTuEquipo
+          ? '/frontend/Imagenes/ContadorDeVidas/DronMisilTuEquipo.png'
+          : '/frontend/Imagenes/ContadorDeVidas/DronNavalEquipoEnemigo.png',
+        municion: esTuEquipo
+          ? '/frontend/Imagenes/ContadorDeVidas/MisilTuEquipo.png'
+          : '/frontend/Imagenes/ContadorDeVidas/MisilEquipoEnemigo.png',
+        porta: esTuEquipo
+          ? '/frontend/Imagenes/ContadorDeVidas/PortaTuEquipo.png'
+          : '/frontend/Imagenes/ContadorDeVidas/PortaEquipoEnemigo.png'
+      };
+    }
+
+    function calcularResumenEquipo(board, equipo) {
+      const drones = (board.drones || []).filter(d => d.equipo === equipo && !d.destruido);
+      const porta = (board.portas || []).find(p => p.equipo === equipo);
+      const vidaMax = impactosMaximosPorta(equipo);
+      const vidaRestante = porta ? porta.impactosRestantes : 0;
+      const dronesActivos = drones.length;
+      const municionRestante = drones.reduce((total, dron) => total + (dron.municion || 0), 0);
+
+      return {
+        vidaRestante,
+        vidaMax,
+        dronesActivos,
+        municionRestante
+      };
+    }
+
+    function actualizarHudInferior(board) {
+      if (!board) return;
+
+      const miEquipo = board.miEquipo || localStorage.getItem('equipoAsignado') || 'NAVAL';
+      const enemigo = equipoContrario(miEquipo);
+
+      const resumenTu = calcularResumenEquipo(board, miEquipo);
+      const resumenEnemigo = calcularResumenEquipo(board, enemigo);
+
+      if (hudTipoTuEquipo) hudTipoTuEquipo.textContent = nombreEquipo(miEquipo);
+      if (hudTipoEnemigo) hudTipoEnemigo.textContent = nombreEquipo(enemigo);
+
+      if (hudDronesTu) hudDronesTu.textContent = String(resumenTu.dronesActivos);
+      if (hudDronesEnemigo) hudDronesEnemigo.textContent = String(resumenEnemigo.dronesActivos);
+      if (hudMunicionTu) hudMunicionTu.textContent = String(resumenTu.municionRestante);
+      if (hudMunicionEnemigo) hudMunicionEnemigo.textContent = String(resumenEnemigo.municionRestante);
+      if (hudVidaTu) hudVidaTu.textContent = `${resumenTu.vidaRestante}/${resumenTu.vidaMax}`;
+      if (hudVidaEnemigo) hudVidaEnemigo.textContent = `${resumenEnemigo.vidaRestante}/${resumenEnemigo.vidaMax}`;
+
+      const iconosTu = obtenerRutasIconosPorEquipo(miEquipo, true);
+      const iconosEnemigo = obtenerRutasIconosPorEquipo(enemigo, false);
+
+      if (hudIconDronTu) hudIconDronTu.src = iconosTu.dron;
+      if (hudIconMunicionTu) hudIconMunicionTu.src = iconosTu.municion;
+      if (hudIconPortaTu) hudIconPortaTu.src = iconosTu.porta;
+
+      if (hudIconDronEnemigo) hudIconDronEnemigo.src = iconosEnemigo.dron;
+      if (hudIconMunicionEnemigo) hudIconMunicionEnemigo.src = iconosEnemigo.municion;
+      if (hudIconPortaEnemigo) hudIconPortaEnemigo.src = iconosEnemigo.porta;
+    }
+
     async function apiRequest(path, method = 'GET') {
       const response = await fetch(`${API}${path}`, { method });
       const raw = await response.text();
@@ -289,12 +434,16 @@
           localStorage.setItem('equipoAsignado', state.equipo);
         }
 
+        if (state.numeroJugador === 1 && state.estadoPartida === 'EN_JUEGO' && !jugador2IniciadoMostrado) {
+          mostrarJugador2Iniciado();
+        }
+
         if (state.numeroJugador === 1 || state.numeroJugador === 2) {
           numeroJugadorActual = state.numeroJugador;
           localStorage.setItem('numeroJugador', String(state.numeroJugador));
           actualizarIndicadorJugador(state.numeroJugador);
 
-          if (state.turnoDe && state.equipo) {
+          if (state.turnoDe && state.equipo && state.estadoPartida === 'EN_JUEGO') {
             const esMiTurno = state.turnoDe === state.equipo;
             const nuevaClaveTurno = `${state.numeroTurno || ''}-${state.turnoDe || ''}`;
             actualizarIndicadorTurno(esMiTurno);
@@ -323,6 +472,13 @@
           }
         } else {
           detenerCronometroTurno();
+        }
+
+        try {
+          const board = await apiRequest(`/board?playerId=${encodeURIComponent(playerId)}`);
+          actualizarHudInferior(board);
+        } catch (errBoard) {
+          console.warn('No se pudo actualizar HUD inferior:', errBoard.message);
         }
       } catch (error) {
         detenerCronometroTurno();
