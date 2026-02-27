@@ -231,9 +231,8 @@ public class ServicioPartida {
             return new TemplateResponse(false, "ERROR", null, null);
         }
 
-        // regla adicional: cada turno sólo una acción
-        if (jugador.getAccionTurno() != Jugador.AccionTurno.NINGUNA) {
-            return new TemplateResponse(false, "ACCION_YA_REALIZADA", null, null);
+        if (jugador.yaMovioEsteTurno()) {
+            return new TemplateResponse(false, "YA_MOVIO_EN_ESTE_TURNO", null, null);
         }
 
         String seleccion = jugador.getDronSeleccionado();
@@ -270,7 +269,7 @@ public class ServicioPartida {
         // se comprobó; usamos el método para mantener banderas internas.
         dron.mover(dx, dy);
         // ya consumió su acción de turno
-        jugador.setAccionTurno(Jugador.AccionTurno.MOVIO);
+        jugador.marcarMovimientoRealizado();
         dao.save(partida);
 
         return new TemplateResponse(true, "OK", jugador.getEquipo().name(), seleccion);
@@ -413,6 +412,143 @@ public class ServicioPartida {
         }
     }
 
+    /**
+     * Respuesta para operaciones de disparo (shoot2).
+     * Contiene información sobre el resultado del impacto y el estado de las unidades después.
+     */
+    public static class ShootResponse {
+        public final boolean ok;
+        public final String estado;       // "OK" o "ERROR"
+        public final String resultado;    // "HIT" o "MISS" (null si error)
+        public final String objetivo;     // "DRON", "PORTA", "NADA" (null si error)
+        public final Integer municionRestante;  // munición del dron disparador después
+        public final Integer vidaObjetivo;      // vida del dron objetivo (si aplica)
+        public final Integer impactosRestantesPorta; // impactos restantes de porta (si aplica)
+
+        public ShootResponse(boolean ok, String estado, String resultado, String objetivo,
+                             Integer municionRestante, Integer vidaObjetivo, Integer impactosRestantesPorta) {
+            this.ok = ok;
+            this.estado = estado;
+            this.resultado = resultado;
+            this.objetivo = objetivo;
+            this.municionRestante = municionRestante;
+            this.vidaObjetivo = vidaObjetivo;
+            this.impactosRestantesPorta = impactosRestantesPorta;
+        }
+    }
+
+    /**
+     * Implementa el caso de uso DISPARAR.
+     * Valida condiciones previas, descuenta munición, aplica daño según tipo de proyectil y objetivo,
+     * y marca la acción de turno como "DISPARO".
+     *
+     * Reglas:
+     * - Una acción por turno (mover o disparar).
+     * - BOMBA (dron AEREO): rango adyacente (1), daña drones NAVAL y porta NAVAL.
+     * - MISIL (dron NAVAL): por ahora rango 1 fijo (TODO: visibilidad real).
+     * - MISIL vs DRON AEREO: destrucción inmediata.
+     * - BOMBA vs DRON NAVAL: resta 1 vida (muere en 2 impactos).
+     * - MISIL vs PORTA AEREO: resta 1 impacto (destruida en 6).
+     * - BOMBA vs PORTA NAVAL: resta 1 impacto (destruida en 3).
+     * - Arma no compatible contra porta: MISS (sin daño).
+     */
+    public ShootResponse shoot2(String playerId, int filaDestino, int colDestino) {
+        Partida partida = dao.loadActiva();
+
+        // Validación 1: estado EN_JUEGO
+        if (partida.getEstado() != EstadoPartida.EN_JUEGO) {
+            return new ShootResponse(false, "PARTIDA_NO_EN_JUEGO", null, null, null, null, null);
+        }
+
+        // Validación 2: jugador existe
+        Jugador jugador = partida.buscarJugadorPorId(playerId);
+        if (jugador == null) {
+            return new ShootResponse(false, "PLAYER_NO_ENCONTRADO", null, null, null, null, null);
+        }
+
+        // Validación 3: es su turno
+        if (!partida.esTurnoDe(playerId)) {
+            return new ShootResponse(false, "NO_ES_TU_TURNO", null, null, null, null, null);
+        }
+
+        if (jugador.yaDisparoEsteTurno()) {
+            return new ShootResponse(false, "YA_DISPARO_EN_ESTE_TURNO", null, null, null, null, null);
+        }
+
+        // Validación 5: tiene dron seleccionado
+        String dronSeleccionadoId = jugador.getDronSeleccionado();
+        if (dronSeleccionadoId == null) {
+            return new ShootResponse(false, "SIN_DRON_SELECCIONADO", null, null, null, null, null);
+        }
+
+        Dron dronDispara = jugador.buscarDronPorId(dronSeleccionadoId);
+        if (dronDispara == null || !dronDispara.estaVivo()) {
+            return new ShootResponse(false, "DRON_INVALIDO_O_DESTRUIDO", null, null, null, null, null);
+        }
+
+        // Validación 6: tiene munición
+        if (dronDispara.getMunicion() <= 0) {
+            return new ShootResponse(false, "SIN_MUNICION", null, null, null, null, null);
+        }
+
+        // Validación 7: está en rango
+        int xOrigen = dronDispara.getPosicion().getX();
+        int yOrigen = dronDispara.getPosicion().getY();
+        int dx = colDestino - xOrigen;
+        int dy = filaDestino - yOrigen;
+
+        // TODO: reemplazar rango fijo 1 por cálculo real de visibilidad del dron misil
+        boolean enRango = Math.abs(dx) <= 1 && Math.abs(dy) <= 1 && !(dx == 0 && dy == 0);
+        if (!enRango) {
+            return new ShootResponse(false, "FUERA_DE_RANGO", null, null, null, null, null);
+        }
+
+        // Consumir munición (antes de evaluar impacto)
+        dronDispara.consumirMunicion();
+        TipoProyectil proyectil = dronDispara.getTipoProyectil();
+
+        // Buscar objetivo en la celda de destino
+        Jugador jugadorEnemigo = partida.getJugador1().getId().equals(jugador.getId()) ? partida.getJugador2() : partida.getJugador1();
+
+        // Primero verificar si hay un dron en esa posición
+        for (Dron dronEnemigo : jugadorEnemigo.getDrones()) {
+            if (dronEnemigo.getPosicion().getX() == colDestino && dronEnemigo.getPosicion().getY() == filaDestino && dronEnemigo.estaVivo()) {
+                // HIT en dron
+                dronEnemigo.recibirImpacto(proyectil);
+                String resultado = "HIT";
+                Integer vidaRestante = dronEnemigo.estaVivo() ? dronEnemigo.getVida() : 0;
+                jugador.marcarDisparoRealizado();                       
+                dao.save(partida);
+                return new ShootResponse(true, "OK", resultado, "DRON", dronDispara.getMunicion(), vidaRestante, null);
+            }
+        }
+
+        // Luego verificar si hay una porta en esa posición
+        if (jugadorEnemigo.getPorta() != null && jugadorEnemigo.getPorta().ocupa(new Posicion(colDestino, filaDestino))) {
+            Porta porta = jugadorEnemigo.getPorta();
+            boolean impactoRecibido = porta.recibirImpacto(proyectil);
+            if (impactoRecibido) {
+                String resultado = "HIT";
+                Integer impactosRestantes = porta.getImpactosRestantes();
+                jugador.marcarDisparoRealizado();
+                dao.save(partida);
+                return new ShootResponse(true, "OK", resultado, "PORTA", dronDispara.getMunicion(), null, impactosRestantes);
+            } else {
+                // Arma no compatible contra esta porta (MISS)
+                String resultado = "MISS";
+                jugador.marcarDisparoRealizado();
+                dao.save(partida);
+                return new ShootResponse(true, "OK", resultado, "PORTA", dronDispara.getMunicion(), null, null);
+            }
+        }
+
+        // MISS: no hay nada en la celda de destino
+        String resultado = "MISS";
+        jugador.marcarDisparoRealizado();
+        dao.save(partida);
+        return new ShootResponse(true, "OK", resultado, "NADA", dronDispara.getMunicion(), null, null);
+    }
+
     public Partida terminarTurno(String playerId) {
     Partida partida = dao.loadActiva();
 
@@ -422,18 +558,18 @@ public class ServicioPartida {
         throw new IllegalArgumentException("PLAYER_NO_ENCONTRADO");
     }
 
+    if (j.getAccionTurno() == Jugador.AccionTurno.NINGUNA) {
+        throw new IllegalStateException("DEBE_REALIZAR_ACCION");
+    }
+
     // Validación: es su turno
     if (!partida.esTurnoDe(playerId)) {
         throw new IllegalStateException("NO_ES_TU_TURNO");
     }
-
-    // si todo está bien, limpiamos la selección de dron del jugador que
-    // acaba de terminar. la regla de negocio que prohíbe cambiar de dron
-    // entre turnos depende de este campo, así que debe restablecerse.
+        
     j.setDronSeleccionado(null);
-    // además se reinicia el 'contador' de acción para que en su próximo turno
-    // pueda mover o disparar de nuevo.
     j.setAccionTurno(Jugador.AccionTurno.NINGUNA);
+    j.resetAccionesTurno();
 
     // Cambiar turno
     if (partida.getTurnoDe() == Equipo.NAVAL) {

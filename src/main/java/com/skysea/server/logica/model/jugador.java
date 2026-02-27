@@ -7,7 +7,7 @@ import java.util.UUID;
 
 public class Jugador {
 
-    public enum AccionTurno { NINGUNA, MOVIO, DISPARO }
+    public enum AccionTurno { NINGUNA, MOVIO, DISPARO, MOVIO_Y_DISPARO }
 
     private final String id;
     private String nombre;
@@ -22,6 +22,10 @@ public class Jugador {
     private Porta porta;
     private final List<Dron> drones;
 
+    private boolean movioEsteTurno = false;
+    private boolean disparoEsteTurno = false;
+
+
     public Jugador(String nombre) {
         this.id = UUID.randomUUID().toString();
         this.nombre = normalizarNombre(nombre);
@@ -30,6 +34,8 @@ public class Jugador {
         this.dronSeleccionado = null;
         this.accionTurno = AccionTurno.NINGUNA;
         this.drones = new ArrayList<>();
+        this.movioEsteTurno = false;
+        this.disparoEsteTurno = false;
     }
 
     // Para reconstrucción desde persistencia
@@ -42,6 +48,8 @@ public class Jugador {
         this.dronSeleccionado = null;
         this.accionTurno = AccionTurno.NINGUNA;
         this.drones = new ArrayList<>();
+        this.movioEsteTurno = false;
+        this.disparoEsteTurno = false;
     }
 
     // ----------------- Lógica útil (MVP) -----------------
@@ -126,6 +134,28 @@ public class Jugador {
 
     // ----------------- Getters/Setters -----------------
 
+    public boolean isMovioEsteTurno() {
+        return movioEsteTurno;
+    }
+
+    public void setMovioEsteTurno(boolean movioEsteTurno) {
+        this.movioEsteTurno = movioEsteTurno;
+    }
+
+    public boolean isDisparoEsteTurno() {
+        return disparoEsteTurno;
+    }
+
+    public void setDisparoEsteTurno(boolean disparoEsteTurno) {
+        this.disparoEsteTurno = disparoEsteTurno;
+    }
+
+    public void resetAccionesTurno() {
+        this.movioEsteTurno = false;
+        this.disparoEsteTurno = false;
+    }
+
+
     public String getId() { return id; }
 
     public String getNombre() { return nombre; }
@@ -186,4 +216,31 @@ public class Jugador {
                 ", conectado=" + conectado +
                 '}';
     }
+
+
+   // -------------------------------------------------
+    public boolean yaMovioEsteTurno() {
+        return accionTurno == AccionTurno.MOVIO || accionTurno == AccionTurno.MOVIO_Y_DISPARO;
+    }
+
+    public void marcarMovimientoRealizado() {
+        if (accionTurno == AccionTurno.DISPARO) {
+            accionTurno = AccionTurno.MOVIO_Y_DISPARO;
+        } else {
+            accionTurno = AccionTurno.MOVIO;
+        }
+    }
+
+    public boolean yaDisparoEsteTurno() {
+        return accionTurno == AccionTurno.DISPARO || accionTurno == AccionTurno.MOVIO_Y_DISPARO;
+    }
+
+    public void marcarDisparoRealizado() {
+        if (accionTurno == AccionTurno.MOVIO) {
+            accionTurno = AccionTurno.MOVIO_Y_DISPARO;
+        } else {
+            accionTurno = AccionTurno.DISPARO;
+        }
+    }
+
 }

@@ -37,7 +37,7 @@
         </div>
         <div class="tablero-acciones">
           <button id="btnMover" class="game-btn boton-accion" type="button" disabled>MOVER</button>
-          <button id="btnDisparar" class="game-btn boton-accion" type="button">DISPARAR</button>
+          <button id="btnDisparar" class="game-btn boton-accion" type="button" disabled>DISPARAR</button>
           <button id="btnPlay" class="game-btn boton-play" type="button" aria-label="Play" title="Play"></button>
         </div>
       </div>
@@ -58,6 +58,7 @@
     const indicadorTurno = document.getElementById('indicadorTurno');
     const cronometroTurno = document.getElementById('cronometroTurno');
     const btnMover = document.getElementById('btnMover');
+    const btnDisparar = document.getElementById('btnDisparar');
     let numeroJugadorActual = Number(localStorage.getItem('numeroJugador'));
     const TIEMPO_TURNO_SEGUNDOS = 30;
     let temporizadorTurnoId = null;
@@ -179,6 +180,10 @@
     let moveMode = false;
     let moveCells = [];                    // array de {cell,handler}
 
+    // --- selección y disparo de dron ---
+    let shootMode = false;
+    let shootCells = [];                   // array de {cell,handler}
+
     function exitMoveMode() {
       moveMode = false;
       moveCells.forEach(({cell, handler}) => {
@@ -213,25 +218,32 @@
               );
               const data = await resp.json();
               if (data.ok) {
-                // trasladar imagen y clases
+                // mover visualmente el dron seleccionado a la celda destino (sin refresh del tablero)
                 const oldCell = selectedDron.cell;
                 const img = oldCell.querySelector('img');
                 if (img) celda.appendChild(img);
-                // mover identificador y clases
+
+                // mover el dataset del dron a la nueva celda
                 celda.dataset.dronId = selectedDron.id;
                 delete oldCell.dataset.dronId;
-                oldCell.classList.remove('ocupada-dron','seleccionado');
-                celda.classList.add('ocupada-dron','seleccionado');
+
+                // actualizar clases
+                oldCell.classList.remove('ocupada-dron', 'seleccionado');
+                celda.classList.add('ocupada-dron', 'seleccionado');
+
+                // actualizar selectedDron
                 selectedDron.cell = celda;
                 selectedDron.fila = fila;
                 selectedDron.col = col;
 
-                // consumió acción: no le permitimos mover otra vez
-                if (btnMover) btnMover.disabled = true;
                 exitMoveMode();
+
+                if (btnMover) btnMover.disabled = true;
+                if (btnDisparar) btnDisparar.disabled = false;
+
+                await refreshPartidaState();
               } else {
                 alert('Movimiento inválido: ' + (data.estado || 'ERROR'));
-                // mantener el modo para intentar otra casilla
               }
             } catch (err) {
               alert('Error al mover dron: ' + err.message);
@@ -239,6 +251,89 @@
           };
           celda.addEventListener('click', handler);
           moveCells.push({cell: celda, handler});
+        }
+      });
+    }
+
+    function exitShootMode() {
+      shootMode = false;
+      shootCells.forEach(({cell, handler}) => {
+        cell.classList.remove('disparable');
+        cell.removeEventListener('click', handler);
+      });
+      shootCells = [];
+      // reactivar botón si hay dron seleccionado
+      if (btnDisparar) {
+        btnDisparar.disabled = !selectedDron;
+      }
+    }
+
+    function enterShootMode() {
+      if (!selectedDron) {
+        alert('Selecciona un dron primero');
+        return;
+      }
+      if (shootMode) return;
+
+      shootMode = true;
+      // salir de modo mover si estaba activo
+      if (moveMode) {
+        exitMoveMode();
+      }
+
+      const {fila: f0, col: c0} = selectedDron;
+      celdas.forEach(({celda, fila, col}) => {
+        const dx = col - c0;
+        const dy = fila - f0;
+
+        // solo celdas adyacentes (rango 1) y no la celda del dron
+        if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1 && !(dx === 0 && dy === 0)) {
+          celda.classList.add('disparable');
+          const handler = async () => {
+            try {
+              const resp = await fetch(
+                `${API}/shoot2?playerId=${encodeURIComponent(playerId)}&fila=${fila}&col=${col}`,
+                { method: 'POST' }
+              );
+              const data = await resp.json();
+              if (data.ok) {
+                // mostrar resultado del disparo
+                const resultado = data.resultado || 'UNKNOWN';
+                const objetivo = data.objetivo || 'NADA';
+                alert(`${resultado} (${objetivo})`);
+
+                // si mató un dron, borrar SOLO esa celda (sin refresh completo)
+                if ((data.resultado === 'HIT') && (data.objetivo === 'DRON') && (typeof data.vidaObjetivo === 'number') && (data.vidaObjetivo <= 0)) {
+                  const celdaObjetivo = celdas.find(c => c.fila === fila && c.col === col)?.celda;
+                  if (celdaObjetivo) {
+                    celdaObjetivo.querySelectorAll('img').forEach(img => img.remove());
+                    celdaObjetivo.classList.remove('ocupada-dron', 'seleccionado');
+                    delete celdaObjetivo.dataset.dronId;
+                  }
+                }
+
+                // consumió acción: deshabilitar botones
+                if (btnDisparar) btnDisparar.disabled = true;   // ya disparó
+                if (btnMover) btnMover.disabled = false;        // todavía puede mover (si tu lógica lo permite)
+
+                exitShootMode();
+
+                
+                // refrescar estado (turno/timer)
+                if (typeof refreshPartidaState === 'function') {
+                  await refreshPartidaState();
+                }
+              } else {
+                // error del backend - mantener modo activo para reintentar
+                const msg = data.estado || data.error || 'ERROR';
+                alert(`Disparo fallido: ${msg}`);
+              }
+            } catch (err) {
+              alert('Error al disparar: ' + err.message);
+            }
+          };
+          celda.addEventListener('click', handler);
+          shootCells.push({cell: celda, handler});
         }
       });
     }
@@ -306,6 +401,15 @@
               } else if (claveTurnoActual !== nuevaClaveTurno) {
                 // acabo de recibir un nuevo turno propio
                 btnMover.disabled = !selectedDron;
+              }
+            }
+
+            // controlar habilitación de botón disparar
+            if (btnDisparar) {
+              if (!esMiTurno) {
+                btnDisparar.disabled = true;
+              } else if (claveTurnoActual !== nuevaClaveTurno) {
+                btnDisparar.disabled = !selectedDron;
               }
             }
 
@@ -505,6 +609,7 @@
       return { puertos, drones };
     }
 
+
     // ====== GENERACIÓN DE CUADRÍCULA Y RENDERIZADO DE FORMACIÓN ======
     (async function () {
       const grid = document.getElementById('grid');
@@ -515,6 +620,10 @@
 
       if (btnMover) {
         btnMover.addEventListener('click', enterMoveMode);
+      }
+      // handler botón DISPARAR
+      if (btnDisparar) {
+        btnDisparar.addEventListener('click', enterShootMode);
       }
       // handler botón flecha "terminar turno"
       const btnPlay = document.getElementById('btnPlay');
@@ -575,11 +684,12 @@
                   col: parseInt(celda.dataset.col),
                   cell: celda
                 };
-                // activar botón mover y cancelar cualquier modo previo
-                exitMoveMode();
-                if (btnMover) {
-                  btnMover.disabled = false;
-                }
+                  // activar botones y cancelar cualquier modo previo
+                  exitMoveMode();
+                  exitShootMode();
+
+                  if (btnMover) btnMover.disabled = false;
+                  if (btnDisparar) btnDisparar.disabled = false;
               } else {
                 alert('No se pudo seleccionar el dron: ' + (data.estado || 'ERROR'));
               }
@@ -703,7 +813,7 @@
       }
     })();
 
-    refreshPartidaState();
+
     setInterval(refreshPartidaState, 2000);
   </script>
 </body>

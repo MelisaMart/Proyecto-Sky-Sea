@@ -165,6 +165,30 @@ public class GameController {
         }
     }
 
+    @PostMapping("/shoot2")
+    public Object shoot2(@RequestParam String playerId,
+                         @RequestParam int fila,
+                         @RequestParam int col) {
+        try {
+            ServicioPartida.ShootResponse r = servicioPartida.shoot2(playerId, fila, col);
+            java.util.Map<String, Object> out = new java.util.HashMap<>();
+            out.put("ok", r.ok);
+            out.put("estado", r.estado);
+            out.put("resultado", r.resultado);
+            out.put("objetivo", r.objetivo);
+            out.put("municionRestante", r.municionRestante);
+            if (r.vidaObjetivo != null) {
+                out.put("vidaObjetivo", r.vidaObjetivo);
+            }
+            if (r.impactosRestantesPorta != null) {
+                out.put("impactosRestantesPorta", r.impactosRestantesPorta);
+            }
+            return out;
+        } catch (Exception e) {
+            return java.util.Map.of("error", e.getMessage());
+        }
+    }
+
     private GameStateDTO toDTO(EstadoJuego estado) {
         GameStateDTO dto = new GameStateDTO();
         dto.dronX = estado.getDron().getPosicion().getX();

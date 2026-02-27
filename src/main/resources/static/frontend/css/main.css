@@ -438,6 +438,15 @@ main {
     background-color: rgba(7, 143, 37, 0.342);
 }
 
+/* celdas a las que se puede disparar el dron seleccionado */
+.celda.disparable {
+    outline: 2px dashed red;
+    cursor: pointer;
+}
+.celda.disparable:hover {
+    background: rgba(255, 0, 0, 0.25);
+}
+
 /* Imagen del porta naval que ocupa múltiples celdas */
 .porta-naval-completo {
     width: 100%;
