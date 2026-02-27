@@ -27,6 +27,11 @@ main {
     justify-content: center;
 }
 
+.pagina-start main {
+    align-items: flex-start;
+    justify-content: center;
+}
+
 /* ================== PÁGINA INICIO ================== */
 
 /* Fondo fijo de la pantalla de inicio */
@@ -214,20 +219,20 @@ main {
     display: block;
     object-fit: cover;
     object-position: 62% center;
-    transform: scale(1.20);
+    transform: scale(1.32);
 }
 
 /* Posición del logo en pantalla start */
 .titulostart {
     position: absolute;
-    top: -65px;
-    left: 5px;
+    top: -40px;
+    left: 2px;
     z-index: 1;
 }
 
 /* Tamaño del logo en pantalla start */
 .titulostart img {
-    width: 200px;
+    width: 150px;
     height: auto;
     display: block;
 }
@@ -239,16 +244,17 @@ main {
     grid-auto-rows: calc(500px / 10);
     gap: 0;
     width: 1000px;
-    margin: 6px auto 0;
+    margin: -28px 0 0;
     justify-content: center;
 }
 
 .tablero-wrapper {
+    position: relative;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     gap: 4px;
-    margin-top: 22px;
+    margin-top: 50px;
 }
 
 .tablero-header {
@@ -261,19 +267,30 @@ main {
 }
 
 .tablero-info {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
+    position: fixed;
+    top: 30px;
+    right: 16px;
+    left: auto;
+    transform: none;
+    z-index: 3;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 4px;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: 2px;
+    width: auto;
 }
 
 .tablero-acciones {
+    position: absolute;
+    left: calc(100% + 30px);
+    top: 50%;
+    transform: translateY(-50%);
     display: flex;
+    flex-direction: column;
     gap: 10px;
     align-items: center;
+    z-index: 4;
 }
 
 .boton-accion {
@@ -319,12 +336,12 @@ main {
 
 /* Jugador 1 o 2 */
 .indicador-jugador {
-    min-height: 26px;
+    min-height: 20px;
     font-family: 'Press Start 2P', cursive;
-    font-size: 24px;
+    font-size: 14px;
     letter-spacing: 2px;
     text-transform: uppercase;
-    text-align: center;
+    text-align: left;
 }
 
 .indicador-jugador.jugador-1 {
@@ -349,43 +366,192 @@ main {
 
 /* Turno del jugador */
 .indicador-turno {
-    min-height: 18px;
+    min-height: 24px;
     font-family: 'Press Start 2P', cursive;
-    font-size: 12px;
-    text-transform: uppercase;
-    text-align: center;
+    font-size: 10px;
+    line-height: 1.50;
+    word-spacing: 0px;
+    white-space: pre-line;
+    text-align: left;
 }
 
 .indicador-turno.tu-turno {
     color: #ffd700;
     text-shadow:
-        1px 1px 0 #000000,
-        -1px -1px 0 #000000,
-        1px -1px 0 #000000,
-        -1px 1px 0 #000000;
+    2px 0 0 #000000,
+    -2px 0 0 #000000,
+    0 2px 0 #000000,
+    0 -2px 0 #000000,
+    2px 2px 0 #000000,
+    -2px -2px 0 #000000,
+    2px -2px 0 #000000,
+    -2px 2px 0 #000000;
 }
 
 .indicador-turno.otro-turno {
     color: #ffffff;
     text-shadow:
-        1px 1px 0 #000000,
-        -1px -1px 0 #000000,
-        1px -1px 0 #000000,
-        -1px 1px 0 #000000;
+    2px 0 0 #000000,
+    -2px 0 0 #000000,
+    0 2px 0 #000000,
+    0 -2px 0 #000000,
+    2px 2px 0 #000000,
+    -2px -2px 0 #000000,
+    2px -2px 0 #000000,
+    -2px 2px 0 #000000;
 }
 
 .cronometro-turno {
-    min-height: 16px;
+    position: static;
+    margin-top: 2px;
+    text-align: right;
     font-family: 'Press Start 2P', cursive;
-    font-size: 11px;
+    font-size: 14px;
     color: #ffd700;
-    text-align: center;
     text-shadow:
-        1px 1px 0 #000000,
-        -1px -1px 0 #000000,
-        1px -1px 0 #000000,
-        -1px 1px 0 #000000;
+         2px 0 0 #000000,
+    -2px 0 0 #000000,
+    0 2px 0 #000000,
+    0 -2px 0 #000000,
+    2px 2px 0 #000000,
+    -2px -2px 0 #000000,
+    2px -2px 0 #000000,
+    -2px 2px 0 #000000;
 }
+
+/* ================== HUD INFERIOR ================== */
+
+/* Contenedor general del HUD */
+.hud-inferior {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;                  
+    z-index: 100;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    align-items: flex-end;       
+    padding: 0 10px 0 10px;
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
+/* Cada tarjeta del HUD */
+.hud-bloque {
+    position: relative;
+    width: 500px;
+    height: 72px;
+    background: rgba(0, 0, 0, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    box-sizing: border-box;
+    padding: 4px 8px 0 8px; 
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+/* Colores según equipo */
+.hud-tu-equipo .hud-titulo,
+.hud-tu-equipo .hud-subtitulo{
+    color: #0c8308;
+    position: relative;
+    top: 5px;
+    left: 5px;
+}
+.hud-tu-equipo .hud-valor {
+    color: #0c8308;
+}
+
+.hud-equipo-enemigo .hud-valor {
+    color: #e20b12;
+}
+
+.hud-equipo-enemigo .hud-titulo,
+.hud-equipo-enemigo .hud-subtitulo{
+    color: #e20b12;
+    position: relative;
+    top: 5px;
+    left: 5px;
+}
+
+/* Encabezado */
+.hud-encabezado {
+    position: relative;
+    z-index: 2;                 
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    transform: none;
+    justify-content: flex-start;
+}
+
+/* Título */
+.hud-titulo {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 10px;
+    text-transform: uppercase;
+    line-height: 1;
+    margin: 0;
+    padding: 0;
+}
+
+/* Subtítulo */
+.hud-subtitulo {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 9px;
+    line-height: 1;
+    margin: 0;
+    padding: 0;
+}
+
+/* Métricas (SUPERPUESTAS) */
+.hud-metricas {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 30px;
+    margin: 0;
+    padding: 0;
+    top: 0;
+}
+
+/* Métrica individual */
+.hud-metrica {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+
+/* Íconos */
+.hud-icono {
+    width: 54px;
+    height: 54px;
+    object-fit: contain;
+    display: block;
+    overflow: visible;
+}
+
+.hud-icono-porta {
+    width: 80px;
+    height: 54px;
+    overflow: visible;
+}
+
+/* Valores */
+.hud-valor {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 16px;
+    line-height: 1;
+}
+
+/* ================== TABLERO DE JUEGO ================== */
 
 /* Celda individual de la cuadrícula */
 .celda {
