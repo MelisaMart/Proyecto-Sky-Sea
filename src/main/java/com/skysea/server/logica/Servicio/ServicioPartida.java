@@ -510,23 +510,49 @@ public class ServicioPartida {
             return visibles;
         }
 
-        for (Dron d : jugador.getDrones()) {
-            if (!d.estaVivo()) continue;
-            int x0 = d.getPosicion().getX();
-            int y0 = d.getPosicion().getY();
-            int rango = d.getRangoVision();
+        agregarUnidadesPropiasAVisibles(jugador, visibles);
 
-            for (int dy = -rango; dy <= rango; dy++) {
-                for (int dx = -rango; dx <= rango; dx++) {
-                    int x = x0 + dx;
-                    int y = y0 + dy;
-                    if (!estaEnTablero(x, y)) continue;
-                    visibles.add(celdaKey(x, y));
-                }
+        String dronSeleccionadoId = jugador.getDronSeleccionado();
+        if (dronSeleccionadoId == null) {
+            return visibles;
+        }
+
+        Dron dronSeleccionado = jugador.buscarDronPorId(dronSeleccionadoId);
+        if (dronSeleccionado == null || !dronSeleccionado.estaVivo()) {
+            return visibles;
+        }
+
+        int x0 = dronSeleccionado.getPosicion().getX();
+        int y0 = dronSeleccionado.getPosicion().getY();
+        int rangoVisibilidad = dronSeleccionado.getTipoProyectil() == TipoProyectil.MISIL
+                ? 2
+                : dronSeleccionado.getRangoMovimiento();
+
+        for (int dy = -rangoVisibilidad; dy <= rangoVisibilidad; dy++) {
+            for (int dx = -rangoVisibilidad; dx <= rangoVisibilidad; dx++) {
+                int x = x0 + dx;
+                int y = y0 + dy;
+                if (!estaEnTablero(x, y)) continue;
+                visibles.add(celdaKey(x, y));
             }
         }
 
         return visibles;
+    }
+
+    private void agregarUnidadesPropiasAVisibles(Jugador jugador, Set<String> visibles) {
+        if (jugador.getPorta() != null) {
+            for (Posicion p : jugador.getPorta().getCeldasOcupadas()) {
+                visibles.add(celdaKey(p.getX(), p.getY()));
+            }
+        }
+
+        for (Dron d : jugador.getDrones()) {
+            if (!d.estaVivo()) {
+                continue;
+            }
+            visibles.add(celdaKey(d.getPosicion().getX(), d.getPosicion().getY()));
+        }
     }
 
     private Jugador obtenerJugadorEnemigo(Partida partida, String playerId) {

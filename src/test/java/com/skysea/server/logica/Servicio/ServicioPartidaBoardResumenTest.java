@@ -11,6 +11,9 @@ import com.skysea.server.persistencia.memory.InMemoryPartidaDAO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class ServicioPartidaBoardResumenTest {
@@ -111,5 +114,69 @@ class ServicioPartidaBoardResumenTest {
         assertNotNull(boardJ1.resumenEnemigo);
         assertEquals("AEREO", boardJ1.resumenEnemigo.equipo);
         assertEquals(impactosAntes - 1, boardJ1.resumenEnemigo.impactosRestantesPorta);
+    }
+
+    @Test
+    void sinDronSeleccionadoNoMuestraUnidadesEnemigas() {
+        ServicioPartida.JoinResponse j1 = servicio.join("Jugador1", "NAVAL");
+        ServicioPartida.JoinResponse j2 = servicio.join("Jugador2", "AEREO");
+
+        servicio.seleccionarPlantilla(j1.playerId, "Naval1");
+        servicio.seleccionarPlantilla(j2.playerId, "Aereo1");
+
+        Partida partida = servicio.getPartidaActiva();
+        Jugador jug1 = partida.buscarJugadorPorId(j1.playerId);
+        assertNotNull(jug1);
+        jug1.setDronSeleccionado(null);
+
+        ServicioPartida.BoardResponse boardJ1 = servicio.obtenerTablero(j1.playerId);
+
+        boolean hayDronesEnemigos = boardJ1.drones.stream().anyMatch(d -> !"NAVAL".equals(d.equipo));
+        boolean hayPortaEnemigo = boardJ1.portas.stream().anyMatch(p -> !"NAVAL".equals(p.equipo));
+
+        assertFalse(hayDronesEnemigos);
+        assertFalse(hayPortaEnemigo);
+    }
+
+    @Test
+    void dronNavalSeleccionadoVeEnemigosSoloEnArea5x5() {
+        ServicioPartida.JoinResponse j1 = servicio.join("Jugador1", "NAVAL");
+        ServicioPartida.JoinResponse j2 = servicio.join("Jugador2", "AEREO");
+
+        servicio.seleccionarPlantilla(j1.playerId, "Naval1");
+        servicio.seleccionarPlantilla(j2.playerId, "Aereo1");
+
+        Partida partida = servicio.getPartidaActiva();
+        Jugador jug1 = partida.buscarJugadorPorId(j1.playerId);
+        Jugador jug2 = partida.buscarJugadorPorId(j2.playerId);
+        assertNotNull(jug1);
+        assertNotNull(jug2);
+
+        Dron dronSensor = jug1.getDrones().get(0);
+        dronSensor.getPosicion().setX(10);
+        dronSensor.getPosicion().setY(5);
+        jug1.setDronSeleccionado(dronSensor.getId());
+
+        for (Dron enemigo : jug2.getDrones()) {
+            enemigo.getPosicion().setX(0);
+            enemigo.getPosicion().setY(0);
+        }
+
+        Dron enemigoVisible = jug2.getDrones().get(0);
+        enemigoVisible.getPosicion().setX(12); // dx=2
+        enemigoVisible.getPosicion().setY(6);  // dy=1
+
+        Dron enemigoNoVisible = jug2.getDrones().get(1);
+        enemigoNoVisible.getPosicion().setX(13); // dx=3 fuera de 5x5
+        enemigoNoVisible.getPosicion().setY(5);
+
+        ServicioPartida.BoardResponse boardJ1 = servicio.obtenerTablero(j1.playerId);
+        Set<String> idsEnemigosVisibles = boardJ1.drones.stream()
+                .filter(d -> "AEREO".equals(d.equipo))
+                .map(d -> d.id)
+                .collect(Collectors.toSet());
+
+        assertTrue(idsEnemigosVisibles.contains(enemigoVisible.getId()));
+        assertFalse(idsEnemigosVisibles.contains(enemigoNoVisible.getId()));
     }
 }

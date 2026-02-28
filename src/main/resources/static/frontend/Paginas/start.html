@@ -142,6 +142,7 @@
     let segundosRestantesTurno = 0;
     let ultimoNumeroTurno = null;
     let autoPasandoTurno = false;
+    let refreshInFlight = false;
     let recuperandoSesion = false;
     let alertaSesionMostrada = false;
     function getPlayerIdActual() {
@@ -635,6 +636,11 @@
         playerIdActual = getPlayerIdActual();
       }
 
+      if (refreshInFlight) {
+        return;
+      }
+      refreshInFlight = true;
+
       try {
         const state = await apiRequest(`/state2?playerId=${encodeURIComponent(playerIdActual)}`);
 
@@ -681,6 +687,7 @@
 
         try {
           const board = await apiRequest(`/board?playerId=${encodeURIComponent(playerIdActual)}`);
+          actualizarRenderPortasDesdeBoard(board);
           actualizarRenderDronesDesdeBoard(board);
           actualizarHudInferior(board);
         } catch (errBoard) {
@@ -693,6 +700,8 @@
           return;
         }
         console.warn('Error al refrescar estado de partida:', error.message);
+      } finally {
+        refreshInFlight = false;
       }
     }
 
@@ -870,6 +879,72 @@
       return { puertos, drones };
     }
 
+    function limpiarRenderPortasTablero() {
+      celdas.forEach(({ celda }) => {
+        celda.classList.remove('ocupada-puerto');
+        celda.querySelectorAll('img[data-porta-render="1"]').forEach((img) => img.remove());
+      });
+    }
+
+    function obtenerClasePortaPorForma(celdasPorta, equipo) {
+      if (!Array.isArray(celdasPorta) || celdasPorta.length === 0) {
+        return equipo === 'AEREO' ? 'porta-aereo-2x5' : 'porta-naval-completo-7-celdas';
+      }
+
+      const filaBase = celdasPorta[0].y;
+      const esHorizontal = celdasPorta.every((c) => c.y === filaBase);
+
+      if (equipo === 'AEREO') {
+        return esHorizontal ? 'porta-aereo-2x5' : 'porta-aereo-vertical-5x2';
+      }
+
+      return esHorizontal ? 'porta-naval-completo-7-celdas' : 'porta-naval-vertical-7-celdas';
+    }
+
+    function actualizarRenderPortasDesdeBoard(board) {
+      if (!board || !Array.isArray(board.portas)) return;
+      const miEquipo = board.miEquipo || getSessionValue('equipoAsignado');
+
+      limpiarRenderPortasTablero();
+
+      board.portas.forEach((porta) => {
+        const celdasPorta = Array.isArray(porta?.celdas) ? porta.celdas : [];
+        if (celdasPorta.length === 0) return;
+
+        const celdasOrdenadas = [...celdasPorta].sort(
+          (a, b) => Number(a.y) - Number(b.y) || Number(a.x) - Number(b.x)
+        );
+
+        celdasOrdenadas.forEach((c) => {
+          const celdaData = celdas.find((x) => x.fila === Number(c.y) && x.col === Number(c.x));
+          if (!celdaData) return;
+          celdaData.celda.classList.add('ocupada-puerto');
+        });
+
+        const esEnemigo = miEquipo && porta.equipo && porta.equipo !== miEquipo;
+        const celdasEsperadas = porta.equipo === 'AEREO' ? 10 : 7;
+        if (esEnemigo && celdasOrdenadas.length < celdasEsperadas) {
+          return;
+        }
+
+        const ancla = celdasOrdenadas[0];
+        const celdaAncla = celdas.find((x) => x.fila === Number(ancla.y) && x.col === Number(ancla.x));
+        if (!celdaAncla) return;
+
+        const img = document.createElement('img');
+        img.dataset.portaRender = '1';
+        if (porta.equipo === 'AEREO') {
+          img.src = '/frontend/Imagenes/PortaAereo/PortaAereoVistaDesdeArriba.png';
+          img.alt = 'Porta Aéreo';
+        } else {
+          img.src = '/frontend/Imagenes/PortaNaval/PortaNavalVistaDeArriba.png';
+          img.alt = 'Porta Naval';
+        }
+        img.className = obtenerClasePortaPorForma(celdasOrdenadas, porta.equipo);
+        celdaAncla.celda.appendChild(img);
+      });
+    }
+
     function limpiarRenderDronesTablero() {
       celdas.forEach(({ celda }) => {
         celda.classList.remove('ocupada-dron', 'seleccionado', 'celda-ammo-verde', 'celda-ammo-amarillo', 'celda-ammo-rojo');
@@ -904,7 +979,6 @@
       board.drones.forEach((dron) => {
         if (!dron) return;
         if (dron.alive === false || dron.destruido === true) return;
-        if (miEquipo && dron.equipo !== miEquipo) return;
         if (!dron.id) return;
 
         const fila = Number(dron.y);
@@ -915,6 +989,7 @@
           id: String(dron.id),
           fila,
           col,
+          equipo: dron.equipo,
           tipo: dron.tipo,
           type: dron.type || dron.proyectil,
           ammoRemaining: Number(dron.ammoRemaining)
@@ -932,6 +1007,7 @@
         if (dronesObjetivo.has(dronId)) return;
         renderActual.celda.classList.remove('ocupada-dron', 'seleccionado', 'celda-ammo-verde', 'celda-ammo-amarillo', 'celda-ammo-rojo');
         delete renderActual.celda.dataset.dronId;
+        delete renderActual.celda.dataset.dronEquipo;
         renderActual.celda.querySelectorAll('img.elemento-formacion').forEach((img) => img.remove());
       });
 
@@ -958,6 +1034,7 @@
           celdaDestino.classList.add(claseMunicionCelda);
         }
         celdaDestino.dataset.dronId = dron.id;
+        celdaDestino.dataset.dronEquipo = dron.equipo || '';
         idsVivos.add(dron.id);
 
         let img = celdaDestino.querySelector('img.elemento-formacion');
@@ -1062,6 +1139,11 @@
             const dronId = celda.dataset.dronId;
             if (!dronId) {
               return; // nothing to do on empty cell
+            }
+            const equipoCelda = celda.dataset.dronEquipo;
+            const miEquipo = getSessionValue('equipoAsignado');
+            if (equipoCelda && miEquipo && equipoCelda !== miEquipo) {
+              return;
             }
             const playerIdCelda = getPlayerIdActual();
             if (!playerIdCelda) {
@@ -1181,6 +1263,7 @@
           }
         });
 
+        actualizarRenderPortasDesdeBoard(board);
         actualizarRenderDronesDesdeBoard(board);
         
         console.log('Formación Naval1 renderizada');
