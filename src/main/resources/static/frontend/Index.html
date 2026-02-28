@@ -157,12 +157,37 @@
       return data || {};
     }
 
+    function getSessionValue(key) {
+      const fromSession = sessionStorage.getItem(key);
+      if (fromSession !== null) {
+        return fromSession;
+      }
+      const legacyValue = localStorage.getItem(key);
+      if (legacyValue !== null) {
+        sessionStorage.setItem(key, legacyValue);
+        localStorage.removeItem(key);
+      }
+      return legacyValue;
+    }
+
+    function setSessionValue(key, value) {
+      sessionStorage.setItem(key, value);
+      localStorage.removeItem(key);
+    }
+
+    function removeSessionValue(key) {
+      sessionStorage.removeItem(key);
+      localStorage.removeItem(key);
+    }
+
     function clearSession() {
-      localStorage.removeItem('playerId');
-      localStorage.removeItem('idPartida');
-      localStorage.removeItem('equipoAsignado');
-      localStorage.removeItem('estrategiaSeleccionada');
-      localStorage.removeItem('numeroJugador');
+      removeSessionValue('playerId');
+      removeSessionValue('idPartida');
+      removeSessionValue('equipoAsignado');
+      removeSessionValue('equipoSeleccionado');
+      removeSessionValue('estrategiaSeleccionada');
+      removeSessionValue('numeroJugador');
+      removeSessionValue('nombreUsuario');
     }
 
     let nombrePendiente = '';
@@ -171,11 +196,11 @@
     let estrategiaModalActivo = null;
 
     function navegarConEstrategia(estrategia) {
-      if (!localStorage.getItem('playerId')) {
+      if (!getSessionValue('playerId')) {
         alert('Primero debes registrarte en la partida.');
         return;
       }
-      localStorage.setItem('estrategiaSeleccionada', estrategia);
+      setSessionValue('estrategiaSeleccionada', estrategia);
       window.location.href = '/frontend/Paginas/start.html';
     }
 
@@ -312,13 +337,13 @@
             return;
           }
 
-          localStorage.setItem('nombreUsuario', join.nombre || nombre);
-          localStorage.setItem('playerId', join.playerId || '');
-          localStorage.setItem('idPartida', join.idPartida || '');
-          localStorage.setItem('equipoAsignado', join.equipo || '');
-          localStorage.setItem('equipoSeleccionado', join.equipo || '');
+          setSessionValue('nombreUsuario', join.nombre || nombre);
+          setSessionValue('playerId', join.playerId || '');
+          setSessionValue('idPartida', join.idPartida || '');
+          setSessionValue('equipoAsignado', join.equipo || '');
+          setSessionValue('equipoSeleccionado', join.equipo || '');
           if (join.numeroJugador === 1 || join.numeroJugador === 2) {
-            localStorage.setItem('numeroJugador', String(join.numeroJugador));
+            setSessionValue('numeroJugador', String(join.numeroJugador));
           }
 
           nombrePendiente = '';
@@ -381,13 +406,13 @@
             return;
           }
 
-          localStorage.setItem('nombreUsuario', join.nombre || nombrePendiente);
-          localStorage.setItem('playerId', join.playerId || '');
-          localStorage.setItem('idPartida', join.idPartida || '');
-          localStorage.setItem('equipoAsignado', join.equipo || equipo);
-          localStorage.setItem('equipoSeleccionado', join.equipo || equipo);
+          setSessionValue('nombreUsuario', join.nombre || nombrePendiente);
+          setSessionValue('playerId', join.playerId || '');
+          setSessionValue('idPartida', join.idPartida || '');
+          setSessionValue('equipoAsignado', join.equipo || equipo);
+          setSessionValue('equipoSeleccionado', join.equipo || equipo);
           if (join.numeroJugador === 1 || join.numeroJugador === 2) {
-            localStorage.setItem('numeroJugador', String(join.numeroJugador));
+            setSessionValue('numeroJugador', String(join.numeroJugador));
           }
 
           nombrePendiente = '';

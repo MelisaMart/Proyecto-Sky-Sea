@@ -11,20 +11,20 @@ public class ServicioPartida {
         this.dao = dao;
     }
 
-    public Partida getPartidaActiva() {
+    public synchronized Partida getPartidaActiva() {
         return dao.loadActiva();
     }
 
-    public void reset() {
+    public synchronized void reset() {
         dao.reset();
     }
 
 
-    public JoinResponse join(String nombre) {
+    public synchronized JoinResponse join(String nombre) {
         return join(nombre, null);
     }
 
-    public JoinResponse join(String nombre, String equipoDeseado) {
+    public synchronized JoinResponse join(String nombre, String equipoDeseado) {
         Partida partida = dao.loadActiva();
 
         String nombreLimpio = nombre == null ? "" : nombre.trim();
@@ -135,7 +135,7 @@ public class ServicioPartida {
         }
     }
 
-    public TemplateResponse seleccionarPlantilla(String playerId, String plantilla) {
+    public synchronized TemplateResponse seleccionarPlantilla(String playerId, String plantilla) {
         Partida partida = dao.loadActiva();
         Jugador jugador = partida.buscarJugadorPorId(playerId);
         if (jugador == null) {
@@ -181,7 +181,7 @@ public class ServicioPartida {
      * En caso contrario se devuelve ERROR. El "equipo" se rellena cuando hay ok,
      * y la columna de plantilla se usa para propagar el id del dron seleccionado.
      */
-    public TemplateResponse selectDrone(String playerId, String dronId) {
+    public synchronized TemplateResponse selectDrone(String playerId, String dronId) {
         Partida partida = dao.loadActiva();
 
         // regla 1: estado EN_JUEGO
@@ -224,7 +224,7 @@ public class ServicioPartida {
      * fallo, OK en caso de éxito. Usa TemplateResponse para mantener el
      * formato del servicio.
      */
-    public TemplateResponse moverDron(String playerId, int filaDestino, int colDestino) {
+    public synchronized TemplateResponse moverDron(String playerId, int filaDestino, int colDestino) {
         Partida partida = dao.loadActiva();
         Jugador jugador = partida.buscarJugadorPorId(playerId);
         if (jugador == null) {
@@ -275,7 +275,7 @@ public class ServicioPartida {
         return new TemplateResponse(true, "OK", jugador.getEquipo().name(), seleccion);
     }
 
-    public BoardResponse obtenerTablero(String playerId) {
+    public synchronized BoardResponse obtenerTablero(String playerId) {
         Partida partida = dao.loadActiva();
         Jugador jugador = partida.buscarJugadorPorId(playerId);
         if (jugador == null) {
@@ -452,7 +452,7 @@ public class ServicioPartida {
      * - BOMBA vs PORTA NAVAL: resta 1 impacto (destruida en 3).
      * - Arma no compatible contra porta: MISS (sin daño).
      */
-    public ShootResponse shoot2(String playerId, int filaDestino, int colDestino) {
+    public synchronized ShootResponse shoot2(String playerId, int filaDestino, int colDestino) {
         Partida partida = dao.loadActiva();
 
         // Validación 1: estado EN_JUEGO
@@ -549,7 +549,7 @@ public class ServicioPartida {
         return new ShootResponse(true, "OK", resultado, "NADA", dronDispara.getMunicion(), null, null);
     }
 
-    public Partida terminarTurno(String playerId) {
+    public synchronized Partida terminarTurno(String playerId) {
     Partida partida = dao.loadActiva();
 
     // Validación: jugador existe

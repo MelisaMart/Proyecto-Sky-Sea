@@ -5,24 +5,24 @@ import com.skysea.server.persistencia.dao.IPartidaDAO;
 
 public class InMemoryPartidaDAO implements IPartidaDAO {
 
-    private Partida partidaActiva;
+    private volatile Partida partidaActiva;
 
     public InMemoryPartidaDAO() {
         reset();
     }
 
     @Override
-    public Partida loadActiva() {
+    public synchronized Partida loadActiva() {
         return partidaActiva;
     }
 
     @Override
-    public void save(Partida partida) {
+    public synchronized void save(Partida partida) {
         this.partidaActiva = partida;
     }
 
     @Override
-    public void reset() {
+    public synchronized void reset() {
         this.partidaActiva = new Partida();
     }
 }

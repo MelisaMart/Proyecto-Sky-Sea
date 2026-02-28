@@ -9,8 +9,10 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests unitarios para ServicioPartida.shoot2()
- * Validar reglas: una acción por turno, munición, rango, daño, persistencia
+ * Validar reglas: una accion por turno, municion, rango, danio, persistencia
  */
+
+
 public class ServicioPartidaShootTest {
 
     private ServicioPartida servicio;

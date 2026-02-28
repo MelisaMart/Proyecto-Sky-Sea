@@ -97,7 +97,26 @@
       ? 'http://localhost:8080'
       : '';
     const API = `${API_BASE}/api/game`;
-    const playerId = localStorage.getItem('playerId');
+
+    function getSessionValue(key) {
+      const fromSession = sessionStorage.getItem(key);
+      if (fromSession !== null) {
+        return fromSession;
+      }
+      const legacyValue = localStorage.getItem(key);
+      if (legacyValue !== null) {
+        sessionStorage.setItem(key, legacyValue);
+        localStorage.removeItem(key);
+      }
+      return legacyValue;
+    }
+
+    function setSessionValue(key, value) {
+      sessionStorage.setItem(key, value);
+      localStorage.removeItem(key);
+    }
+
+    let playerId = getSessionValue('playerId');
     const indicadorJugador = document.getElementById('indicadorJugador');
     const indicadorTurno = document.getElementById('indicadorTurno');
     const cronometroTurno = document.getElementById('cronometroTurno');
@@ -116,15 +135,52 @@
     const hudIconMunicionEnemigo = document.getElementById('hudIconMunicionEnemigo');
     const hudIconPortaTu = document.getElementById('hudIconPortaTu');
     const hudIconPortaEnemigo = document.getElementById('hudIconPortaEnemigo');
-    let numeroJugadorActual = Number(localStorage.getItem('numeroJugador'));
+    let numeroJugadorActual = Number(getSessionValue('numeroJugador'));
     const TIEMPO_TURNO_SEGUNDOS = 30;
     let temporizadorTurnoId = null;
     let segundosRestantesTurno = TIEMPO_TURNO_SEGUNDOS;
     let claveTurnoActual = null;
     let autoPasandoTurno = false;
+    let recuperandoSesion = false;
+    let alertaSesionMostrada = false;
+    function getPlayerIdActual() {
+      if (!playerId) {
+        playerId = getSessionValue('playerId');
+      }
+      return playerId;
+    }
+
+    async function intentarRecuperarSesion() {
+      if (recuperandoSesion) return false;
+      const nombreUsuario = getSessionValue('nombreUsuario');
+      if (!nombreUsuario) return false;
+
+      recuperandoSesion = true;
+      try {
+        const join = await apiRequest(`/join?nombre=${encodeURIComponent(nombreUsuario)}`, 'POST');
+        if (!join || !join.playerId) {
+          return false;
+        }
+
+        playerId = join.playerId;
+        setSessionValue('playerId', join.playerId);
+        if (join.idPartida) setSessionValue('idPartida', join.idPartida);
+        if (join.equipo) setSessionValue('equipoAsignado', join.equipo);
+        if (join.numeroJugador === 1 || join.numeroJugador === 2) {
+          setSessionValue('numeroJugador', String(join.numeroJugador));
+        }
+        alertaSesionMostrada = false;
+        return true;
+      } catch (_) {
+        return false;
+      } finally {
+        recuperandoSesion = false;
+      }
+    }
+
 
     // el backend controlarÃ¡ si el jugador ya realizÃ³ una acciÃ³n en el turno,
-    // el frontend no guarda este estado en localStorage.
+    // el frontend no guarda este estado en almacenamiento persistente compartido.
 
     function actualizarIndicadorJugador(numeroJugador) {
       if (!indicadorJugador) return;
@@ -188,10 +244,11 @@
     // desde el timeout o desde un botón manual. Retorna la respuesta si hay OK
     // y lanza error en caso contrario.
     async function pasarTurno() {
-      if (autoPasandoTurno || !playerId) return;
+      const playerIdActual = getPlayerIdActual();
+      if (autoPasandoTurno || !playerIdActual) return;
       autoPasandoTurno = true;
       try {
-        const data = await apiRequest(`/endTurn2?playerId=${encodeURIComponent(playerId)}`, 'POST');
+        const data = await apiRequest(`/endTurn2?playerId=${encodeURIComponent(playerIdActual)}`, 'POST');
         // limpieza de interfaz al completar el cambio de turno
         if (typeof exitMoveMode === 'function') exitMoveMode();
         if (typeof exitShootMode === 'function') exitShootMode();
@@ -222,7 +279,7 @@
       }, 1000);
     }
 
-    const numeroGuardado = Number(localStorage.getItem('numeroJugador'));
+    const numeroGuardado = Number(getSessionValue('numeroJugador'));
     if (numeroGuardado === 1 || numeroGuardado === 2) {
       actualizarIndicadorJugador(numeroGuardado);
     } else {
@@ -265,8 +322,13 @@
           celda.classList.add('movible');
           const handler = async () => {
             try {
+              const playerIdMover = getPlayerIdActual();
+              if (!playerIdMover) {
+                alert('Jugador no identificado');
+                return;
+              }
               const resp = await fetch(
-                `${API}/move2?playerId=${encodeURIComponent(playerId)}&fila=${fila}&col=${col}`,
+                `${API}/move2?playerId=${encodeURIComponent(playerIdMover)}&fila=${fila}&col=${col}`,
                 { method: 'POST' }
               );
               const data = await resp.json();
@@ -370,7 +432,7 @@
     function actualizarHudInferior(board) {
       if (!board) return;
 
-      const miEquipo = board.miEquipo || localStorage.getItem('equipoAsignado') || 'NAVAL';
+      const miEquipo = board.miEquipo || getSessionValue('equipoAsignado') || 'NAVAL';
       const enemigo = equipoContrario(miEquipo);
 
       const resumenTu = calcularResumenEquipo(board, miEquipo);
@@ -422,16 +484,24 @@
     }
 
     async function refreshPartidaState() {
-      if (!playerId) {
-        window.location.href = '/frontend/Index.html';
-        return;
+      let playerIdActual = getPlayerIdActual();
+      if (!playerIdActual) {
+        const recuperado = await intentarRecuperarSesion();
+        if (!recuperado) {
+          if (!alertaSesionMostrada) {
+            alertaSesionMostrada = true;
+            alert('No se pudo recuperar tu sesión. Vuelve a entrar desde INICIO.');
+          }
+          return;
+        }
+        playerIdActual = getPlayerIdActual();
       }
 
       try {
-        const state = await apiRequest(`/state2?playerId=${encodeURIComponent(playerId)}`);
+        const state = await apiRequest(`/state2?playerId=${encodeURIComponent(playerIdActual)}`);
 
         if (state.equipo) {
-          localStorage.setItem('equipoAsignado', state.equipo);
+          setSessionValue('equipoAsignado', state.equipo);
         }
 
         if (state.numeroJugador === 1 && state.estadoPartida === 'EN_JUEGO' && !jugador2IniciadoMostrado) {
@@ -440,7 +510,7 @@
 
         if (state.numeroJugador === 1 || state.numeroJugador === 2) {
           numeroJugadorActual = state.numeroJugador;
-          localStorage.setItem('numeroJugador', String(state.numeroJugador));
+          setSessionValue('numeroJugador', String(state.numeroJugador));
           actualizarIndicadorJugador(state.numeroJugador);
 
           if (state.turnoDe && state.equipo && state.estadoPartida === 'EN_JUEGO') {
@@ -475,15 +545,18 @@
         }
 
         try {
-          const board = await apiRequest(`/board?playerId=${encodeURIComponent(playerId)}`);
+          const board = await apiRequest(`/board?playerId=${encodeURIComponent(playerIdActual)}`);
           actualizarHudInferior(board);
         } catch (errBoard) {
           console.warn('No se pudo actualizar HUD inferior:', errBoard.message);
         }
       } catch (error) {
         detenerCronometroTurno();
-        alert(`Sesión no válida o servidor no disponible: ${error.message}`);
-        window.location.href = '/frontend/Index.html';
+        if (String(error.message || '').includes('PLAYER_NO_ENCONTRADO')) {
+          await intentarRecuperarSesion();
+          return;
+        }
+        console.warn('Error al refrescar estado de partida:', error.message);
       }
     }
 
@@ -676,7 +749,7 @@
       const btnPlay = document.getElementById('btnPlay');
       if (btnPlay) {
         btnPlay.addEventListener('click', async () => {
-          if (!playerId) {
+          if (!getPlayerIdActual()) {
             alert('Falta playerId');
             return;
           }
@@ -688,8 +761,17 @@
         });
       }
 
-      if (!playerId) {
-        window.location.href = '/frontend/Index.html';
+      if (!getPlayerIdActual()) {
+        const recuperado = await intentarRecuperarSesion();
+        if (!recuperado) {
+          alert('No se encontró sesión activa. Vuelve a entrar desde INICIO.');
+          return;
+        }
+      }
+
+      const playerIdActual = getPlayerIdActual();
+      if (!playerIdActual) {
+        alert('No se encontró sesión activa. Vuelve a entrar desde INICIO.');
         return;
       }
 
@@ -710,13 +792,14 @@
             if (!dronId) {
               return; // nothing to do on empty cell
             }
-            if (!playerId) {
+            const playerIdCelda = getPlayerIdActual();
+            if (!playerIdCelda) {
               // TODO el playerId debería guardarse al hacer join inicial
               alert('Jugador no identificado');
               return;
             }
             try {
-              const resp = await fetch(`${API}/selectDrone2?playerId=${encodeURIComponent(playerId)}&dronId=${encodeURIComponent(dronId)}`, {
+              const resp = await fetch(`${API}/selectDrone2?playerId=${encodeURIComponent(playerIdCelda)}&dronId=${encodeURIComponent(dronId)}`, {
                 method: 'POST'
               });
               const data = await resp.json();
@@ -751,35 +834,33 @@
 
       console.log('Cuadrícula creada:', filasTotal, 'filas x', colsTotal, 'columnas =', celdas.length, 'celdas');
 
-      const equipoAsignado = localStorage.getItem('equipoAsignado') || 'NAVAL';
-      const estrategiaGuardada = localStorage.getItem('estrategiaSeleccionada');
+      const equipoAsignado = getSessionValue('equipoAsignado') || 'NAVAL';
+      const estrategiaGuardada = getSessionValue('estrategiaSeleccionada');
       const estrategiaSeleccionada = estrategiaValidaParaEquipo(estrategiaGuardada, equipoAsignado)
         ? estrategiaGuardada
         : estrategiaDefaultPorEquipo(equipoAsignado);
 
-      localStorage.setItem('estrategiaSeleccionada', estrategiaSeleccionada);
+      setSessionValue('estrategiaSeleccionada', estrategiaSeleccionada);
       console.log('Estrategia seleccionada:', estrategiaSeleccionada);
 
       try {
         const plantilla = normalizarTipoPlantilla(estrategiaSeleccionada);
         if (plantilla) {
           const templateResp = await apiRequest(
-            `/template?playerId=${encodeURIComponent(playerId)}&plantilla=${encodeURIComponent(plantilla)}`,
+            `/template?playerId=${encodeURIComponent(playerIdActual)}&plantilla=${encodeURIComponent(plantilla)}`,
             'POST'
           );
           if (templateResp?.ok === false && templateResp?.estado !== 'PLANTILLA_YA_BLOQUEADA') {
             alert(`No se pudo aplicar la plantilla: ${templateResp.estado || 'ERROR'}`);
-            window.location.href = '/frontend/Index.html';
             return;
           }
         }
 
-        const board = await apiRequest(`/board?playerId=${encodeURIComponent(playerId)}`);
+        const board = await apiRequest(`/board?playerId=${encodeURIComponent(playerIdActual)}`);
         const formacion = convertirBoardAFormacion(board, equipoAsignado);
 
         if (!formacion || formacion.puertos.length === 0) {
           alert('Aún no se pudo cargar la plantilla de despliegue.');
-          window.location.href = '/frontend/Index.html';
           return;
         }
 
@@ -855,7 +936,6 @@
         console.log('Formación Naval1 renderizada');
       } catch (error) {
         alert(`No se pudo cargar tablero desde backend: ${error.message}`);
-        window.location.href = '/frontend/Index.html';
       }
     })();
 
