@@ -324,6 +324,7 @@ public class ServicioPartida {
         dron.mover(dx, dy);
         // ya consumió su acción de turno
         jugador.marcarMovimientoRealizado();
+        avanzarTurnoSiAccionCompleta(partida, jugador);
         dao.save(partida);
 
         return new TemplateResponse(true, "OK", jugador.getEquipo().name(), seleccion);
@@ -890,6 +891,7 @@ public class ServicioPartida {
             String resultado = "HIT";
             Integer vidaRestante = dronObjetivoVivo.estaVivo() ? dronObjetivoVivo.getVida() : 0;
             jugador.marcarDisparoRealizado();
+            avanzarTurnoSiAccionCompleta(partida, jugador);
             dao.save(partida);
             return new ShootResponse(true, "OK", resultado, "DRON", dronDispara.getMunicion(), vidaRestante, null);
         }
@@ -900,12 +902,14 @@ public class ServicioPartida {
                 String resultado = "HIT";
                 Integer impactosRestantes = portaObjetivo.getImpactosRestantes();
                 jugador.marcarDisparoRealizado();
+                avanzarTurnoSiAccionCompleta(partida, jugador);
                 dao.save(partida);
                 return new ShootResponse(true, "OK", resultado, "PORTA", dronDispara.getMunicion(), null, impactosRestantes);
             } else {
                 // Arma no compatible contra esta porta (MISS)
                 String resultado = "MISS";
                 jugador.marcarDisparoRealizado();
+                avanzarTurnoSiAccionCompleta(partida, jugador);
                 dao.save(partida);
                 return new ShootResponse(true, "OK", resultado, "PORTA", dronDispara.getMunicion(), null, null);
             }
@@ -1017,6 +1021,12 @@ public class ServicioPartida {
 
         avanzarTurno(partida);
         dao.save(partida);
+    }
+
+    private void avanzarTurnoSiAccionCompleta(Partida partida, Jugador jugador) {
+        if (jugador != null && jugador.getAccionTurno() == Jugador.AccionTurno.MOVIO_Y_DISPARO) {
+            avanzarTurno(partida);
+        }
     }
 
     private void avanzarTurno(Partida partida) {

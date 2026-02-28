@@ -336,7 +336,7 @@ public class ServicioPartidaShootTest {
 
     /**
      * Test 9: Se puede disparar y luego mover en el mismo turno,
-     * pero no se puede volver a disparar en ese turno.
+     * y al completar ambas acciones se pasa automáticamente al turno rival.
      */
     @Test
     void testDispararLuegoMoverYNoDispararDosVeces() {
@@ -375,10 +375,13 @@ public class ServicioPartidaShootTest {
         assertTrue(respMove.ok);
         assertEquals("OK", respMove.estado);
 
-        // Intentar disparar nuevamente en el mismo turno (debe fallar)
+        // Intentar disparar nuevamente (debe fallar por cambio automático de turno)
         ServicioPartida.ShootResponse resp2 = servicio.shoot2(jug1.getId(), filaMove, colMove);
         assertFalse(resp2.ok);
-        assertEquals("YA_DISPARO_EN_ESTE_TURNO", resp2.estado);
+        assertEquals("NO_ES_TU_TURNO", resp2.estado);
+
+        Partida partidaActualizada = dao.loadActiva();
+        assertEquals(Equipo.AEREO, partidaActualizada.getTurnoDe());
     }
 
     @Test
@@ -461,5 +464,83 @@ public class ServicioPartidaShootTest {
         boolean portaApareceComoDisparable = shots.celdas.stream()
                 .anyMatch(c -> c.x == xPorta && c.y == yPorta);
         assertTrue(portaApareceComoDisparable);
+    }
+
+    @Test
+    void testMoverLuegoDispararPasaTurnoAutomaticamente() {
+        Partida partida = dao.loadActiva();
+        Jugador jug1 = partida.getJugador1();
+        Jugador jug2 = partida.getJugador2();
+
+        partida.setTurnoDe(Equipo.NAVAL);
+        int turnoAntes = partida.getNumeroTurno();
+
+        Dron dron = jug1.getDrones().get(0);
+        jug1.setDronSeleccionado(dron.getId());
+
+        ServicioPartida.AvailableMovesResponse moves = servicio.obtenerMovimientosDisponibles(jug1.getId());
+        assertTrue(moves.ok);
+        assertFalse(moves.celdas.isEmpty());
+        int filaMove = moves.celdas.get(0).y;
+        int colMove = moves.celdas.get(0).x;
+
+        ServicioPartida.TemplateResponse moveResp = servicio.moverDron(jug1.getId(), filaMove, colMove);
+        assertTrue(moveResp.ok);
+
+        Dron enemigo = jug2.getDrones().get(0);
+        int xObjetivo = enemigo.getPosicion().getX();
+        int yObjetivo = enemigo.getPosicion().getY();
+        int xShooter = xObjetivo + 1;
+        if (xShooter > Reglas.TABLERO_X_MAX) {
+            xShooter = xObjetivo - 1;
+        }
+        dron.getPosicion().setX(xShooter);
+        dron.getPosicion().setY(yObjetivo);
+
+        ServicioPartida.ShootResponse shootResp = servicio.shoot2(jug1.getId(), yObjetivo, xObjetivo);
+        assertTrue(shootResp.ok);
+
+        Partida actualizada = dao.loadActiva();
+        assertEquals(Equipo.AEREO, actualizada.getTurnoDe());
+        assertEquals(turnoAntes + 1, actualizada.getNumeroTurno());
+    }
+
+    @Test
+    void testDispararLuegoMoverPasaTurnoAutomaticamente() {
+        Partida partida = dao.loadActiva();
+        Jugador jug1 = partida.getJugador1();
+        Jugador jug2 = partida.getJugador2();
+
+        partida.setTurnoDe(Equipo.NAVAL);
+        int turnoAntes = partida.getNumeroTurno();
+
+        Dron dron = jug1.getDrones().get(0);
+        jug1.setDronSeleccionado(dron.getId());
+
+        Dron enemigo = jug2.getDrones().get(0);
+        int xObjetivo = enemigo.getPosicion().getX();
+        int yObjetivo = enemigo.getPosicion().getY();
+        int xShooter = xObjetivo + 1;
+        if (xShooter > Reglas.TABLERO_X_MAX) {
+            xShooter = xObjetivo - 1;
+        }
+        dron.getPosicion().setX(xShooter);
+        dron.getPosicion().setY(yObjetivo);
+
+        ServicioPartida.ShootResponse shootResp = servicio.shoot2(jug1.getId(), yObjetivo, xObjetivo);
+        assertTrue(shootResp.ok);
+
+        ServicioPartida.AvailableMovesResponse moves = servicio.obtenerMovimientosDisponibles(jug1.getId());
+        assertTrue(moves.ok);
+        assertFalse(moves.celdas.isEmpty());
+        int filaMove = moves.celdas.get(0).y;
+        int colMove = moves.celdas.get(0).x;
+
+        ServicioPartida.TemplateResponse moveResp = servicio.moverDron(jug1.getId(), filaMove, colMove);
+        assertTrue(moveResp.ok);
+
+        Partida actualizada = dao.loadActiva();
+        assertEquals(Equipo.AEREO, actualizada.getTurnoDe());
+        assertEquals(turnoAntes + 1, actualizada.getNumeroTurno());
     }
 }
