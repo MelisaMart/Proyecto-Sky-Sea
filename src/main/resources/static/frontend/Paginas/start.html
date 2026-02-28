@@ -140,6 +140,7 @@
     const TIEMPO_TURNO_SEGUNDOS = 30;
     let duracionTurnoSegundos = TIEMPO_TURNO_SEGUNDOS;
     let segundosRestantesTurno = 0;
+    let ultimoNumeroTurno = null;
     let autoPasandoTurno = false;
     let recuperandoSesion = false;
     let alertaSesionMostrada = false;
@@ -310,7 +311,16 @@
       }
     }
 
-    function enterShootMode() {
+    function limpiarSeleccionLocal() {
+      exitMoveMode();
+      exitShootMode();
+      document.querySelectorAll('.celda.seleccionado').forEach((el) => el.classList.remove('seleccionado'));
+      selectedDron = null;
+      if (btnMover) btnMover.disabled = true;
+      if (btnDisparar) btnDisparar.disabled = true;
+    }
+
+    function enterShootMode(reintento = false) {
       if (!selectedDron || shootMode) return;
       shootMode = true;
 
@@ -325,6 +335,17 @@
 
           const disponibles = await apiRequest(`/availableShots2?playerId=${encodeURIComponent(playerIdShoot)}`);
           if (!disponibles.ok) {
+            if (!reintento && disponibles.estado === 'SIN_DRON_SELECCIONADO' && selectedDron?.id) {
+              const sel = await apiRequest(
+                `/selectDrone2?playerId=${encodeURIComponent(playerIdShoot)}&dronId=${encodeURIComponent(selectedDron.id)}`,
+                'POST'
+              );
+              if (sel?.ok) {
+                exitShootMode();
+                enterShootMode(true);
+                return;
+              }
+            }
             alert('No se puede disparar: ' + (disponibles.estado || 'ERROR'));
             exitShootMode();
             return;
@@ -372,7 +393,7 @@
       })();
     }
 
-    function enterMoveMode() {
+    function enterMoveMode(reintento = false) {
       if (!selectedDron || moveMode) return;
       moveMode = true;
       (async () => {
@@ -386,6 +407,17 @@
 
           const disponibles = await apiRequest(`/availableMoves2?playerId=${encodeURIComponent(playerIdMover)}`);
           if (!disponibles.ok) {
+            if (!reintento && disponibles.estado === 'SIN_DRON_SELECCIONADO' && selectedDron?.id) {
+              const sel = await apiRequest(
+                `/selectDrone2?playerId=${encodeURIComponent(playerIdMover)}&dronId=${encodeURIComponent(selectedDron.id)}`,
+                'POST'
+              );
+              if (sel?.ok) {
+                exitMoveMode();
+                enterMoveMode(true);
+                return;
+              }
+            }
             alert('No se puede mover: ' + (disponibles.estado || 'ERROR'));
             exitMoveMode();
             return;
@@ -405,11 +437,10 @@
                   alert('Jugador no identificado');
                   return;
                 }
-                const resp = await fetch(
-                  `${API}/move2?playerId=${encodeURIComponent(playerIdMoverActual)}&fila=${y}&col=${x}`,
-                  { method: 'POST' }
+                const data = await apiRequest(
+                  `/move2?playerId=${encodeURIComponent(playerIdMoverActual)}&fila=${y}&col=${x}`,
+                  'POST'
                 );
-                const data = await resp.json();
                 if (data.ok) {
                   const oldCell = selectedDron.cell;
                   const img = oldCell.querySelector('img');
@@ -428,7 +459,7 @@
                   alert('Movimiento inválido: ' + (data.estado || 'ERROR'));
                 }
               } catch (err) {
-                alert('Error al mover dron: ' + err.message);
+                alert('Error al mover dron: ' + (err?.message || 'ERROR'));
               }
             };
             celda.addEventListener('click', handler);
@@ -616,6 +647,14 @@
           setSessionValue('numeroJugador', String(state.numeroJugador));
           actualizarIndicadorJugador(state.numeroJugador);
 
+          const numeroTurnoRecibido = Number(state.numeroTurno);
+          if (Number.isFinite(numeroTurnoRecibido)) {
+            if (ultimoNumeroTurno !== null && numeroTurnoRecibido !== ultimoNumeroTurno) {
+              limpiarSeleccionLocal();
+            }
+            ultimoNumeroTurno = numeroTurnoRecibido;
+          }
+
           if (state.turnoDe && state.equipo && state.estadoPartida === 'EN_JUEGO') {
             const esMiTurno = state.esMiTurno === true || state.turnoDe === state.equipo;
             actualizarIndicadorTurno(esMiTurno);
@@ -628,7 +667,7 @@
             // controlar habilitación de botón mover
             if (btnMover) {
               if (!esMiTurno) {
-                btnMover.disabled = true;
+                limpiarSeleccionLocal();
               } else {
                 btnMover.disabled = !selectedDron;
               }
@@ -642,6 +681,7 @@
 
         try {
           const board = await apiRequest(`/board?playerId=${encodeURIComponent(playerIdActual)}`);
+          actualizarRenderDronesDesdeBoard(board);
           actualizarHudInferior(board);
         } catch (errBoard) {
           console.warn('No se pudo actualizar HUD inferior:', errBoard.message);
@@ -830,6 +870,112 @@
       return { puertos, drones };
     }
 
+    function limpiarRenderDronesTablero() {
+      celdas.forEach(({ celda }) => {
+        celda.classList.remove('ocupada-dron', 'seleccionado');
+        delete celda.dataset.dronId;
+        celda.querySelectorAll('img.elemento-formacion').forEach((img) => img.remove());
+      });
+    }
+
+    function actualizarRenderDronesDesdeBoard(board) {
+      if (!board || !Array.isArray(board.drones)) return;
+      const miEquipo = board.miEquipo || getSessionValue('equipoAsignado');
+
+      const dronesObjetivo = new Map();
+      board.drones.forEach((dron) => {
+        if (!dron || dron.destruido) return;
+        if (miEquipo && dron.equipo !== miEquipo) return;
+        if (!dron.id) return;
+
+        const fila = Number(dron.y);
+        const col = Number(dron.x);
+        if (!Number.isFinite(fila) || !Number.isFinite(col)) return;
+
+        dronesObjetivo.set(String(dron.id), {
+          id: String(dron.id),
+          fila,
+          col,
+          tipo: dron.tipo
+        });
+      });
+
+      const dronesActuales = new Map();
+      celdas.forEach(({ celda, fila, col }) => {
+        const dronId = celda.dataset.dronId;
+        if (!dronId) return;
+        dronesActuales.set(String(dronId), { celda, fila, col });
+      });
+
+      dronesActuales.forEach((renderActual, dronId) => {
+        if (dronesObjetivo.has(dronId)) return;
+        renderActual.celda.classList.remove('ocupada-dron', 'seleccionado');
+        delete renderActual.celda.dataset.dronId;
+        renderActual.celda.querySelectorAll('img.elemento-formacion').forEach((img) => img.remove());
+      });
+
+      const idsVivos = new Set();
+      dronesObjetivo.forEach((dron) => {
+        const celdaData = celdas.find(c => c.fila === dron.fila && c.col === dron.col);
+        if (!celdaData) return;
+        const celdaDestino = celdaData.celda;
+        const renderActual = dronesActuales.get(dron.id);
+
+        if (renderActual && renderActual.celda !== celdaDestino) {
+          const imgExistente = renderActual.celda.querySelector('img.elemento-formacion');
+          renderActual.celda.classList.remove('ocupada-dron', 'seleccionado');
+          delete renderActual.celda.dataset.dronId;
+          if (imgExistente) {
+            celdaDestino.appendChild(imgExistente);
+          }
+        }
+
+        celdaDestino.classList.add('ocupada-dron');
+        celdaDestino.dataset.dronId = dron.id;
+        idsVivos.add(dron.id);
+
+        let img = celdaDestino.querySelector('img.elemento-formacion');
+        if (!img) {
+          img = document.createElement('img');
+          img.className = 'elemento-formacion';
+          celdaDestino.appendChild(img);
+        }
+
+        const esAereo = dron.tipo === 'DRON_AEREO';
+        const srcObjetivo = esAereo
+          ? '/frontend/Imagenes/DronAereo/DronAereoVistaDesdeArriba.png'
+          : '/frontend/Imagenes/DronNaval/DronMisilVistaDesdeArriba.png';
+        const altObjetivo = esAereo ? 'Dron Aéreo' : 'Dron Misil';
+        const classObjetivo = esAereo ? 'elemento-formacion' : 'elemento-formacion dron-derecha';
+
+        if (img.getAttribute('src') !== srcObjetivo) {
+          img.setAttribute('src', srcObjetivo);
+        }
+        img.setAttribute('alt', altObjetivo);
+        img.className = classObjetivo;
+      });
+
+      if (!selectedDron) {
+        return;
+      }
+
+      const selectedId = String(selectedDron.id);
+      if (!idsVivos.has(selectedId)) {
+        selectedDron = null;
+        if (btnMover) btnMover.disabled = true;
+        if (btnDisparar) btnDisparar.disabled = true;
+        return;
+      }
+
+      const celdaSeleccionada = celdas.find(c => c.celda.dataset.dronId === selectedId);
+      if (celdaSeleccionada) {
+        selectedDron.cell = celdaSeleccionada.celda;
+        selectedDron.fila = celdaSeleccionada.fila;
+        selectedDron.col = celdaSeleccionada.col;
+        celdaSeleccionada.celda.classList.add('seleccionado');
+      }
+    }
+
     // ====== GENERACIÓN DE CUADRÍCULA Y RENDERIZADO DE FORMACIÓN ======
     (async function () {
       const grid = document.getElementById('grid');
@@ -898,10 +1044,10 @@
               return;
             }
             try {
-              const resp = await fetch(`${API}/selectDrone2?playerId=${encodeURIComponent(playerIdCelda)}&dronId=${encodeURIComponent(dronId)}`, {
-                method: 'POST'
-              });
-              const data = await resp.json();
+              const data = await apiRequest(
+                `/selectDrone2?playerId=${encodeURIComponent(playerIdCelda)}&dronId=${encodeURIComponent(dronId)}`,
+                'POST'
+              );
               if (data.ok) {
                 // visualizar selección y guardar estado
                 document.querySelectorAll('.celda.seleccionado').forEach(el => el.classList.remove('seleccionado'));
@@ -926,7 +1072,7 @@
                 alert('No se pudo seleccionar el dron: ' + (data.estado || 'ERROR'));
               }
             } catch (err) {
-              alert('Error al llamar selectDrone: ' + err.message);
+              alert('Error al seleccionar dron: ' + (err?.message || 'ERROR'));
             }
           });
           
@@ -1009,32 +1155,7 @@
           }
         });
 
-        formacion.drones.forEach((dron, idx) => {
-          const celdaData = celdas.find(c => c.fila === dron.fila && c.col === dron.col);
-          if (celdaData) {
-            const celda = celdaData.celda;
-            celda.classList.add('ocupada-dron');
-            // exponer el id del dron en el dataset para selección posterior
-            if (dron.id) celda.dataset.dronId = dron.id;
-            
-            const img = document.createElement('img');
-            img.className = 'elemento-formacion';
-            
-            if (dron.tipo === 'DronAereo') {
-              img.src = `/frontend/Imagenes/DronAereo/DronAereoVistaDesdeArriba.png`;
-              img.alt = 'Dron Aéreo';
-            } else {
-              img.src = `/frontend/Imagenes/DronNaval/DronMisilVistaDesdeArriba.png`;
-              img.alt = 'Dron Misil';
-              img.className += ' dron-derecha';
-            }
-            
-            img.onload = () => console.log('Imagen Dron cargada', dron.tipo, idx);
-            img.onerror = () => console.error('Error al cargar imagen del dron:', dron.tipo);
-            celda.appendChild(img);
-            console.log('Dron', idx, dron.tipo, 'agregado en fila', dron.fila, 'col', dron.col);
-          }
-        });
+        actualizarRenderDronesDesdeBoard(board);
         
         console.log('Formación Naval1 renderizada');
       } catch (error) {

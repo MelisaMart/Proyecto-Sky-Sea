@@ -227,29 +227,29 @@ public class ServicioPartida {
 
         // regla 1: estado EN_JUEGO
         if (partida.getEstado() != EstadoPartida.EN_JUEGO) {
-            return new TemplateResponse(false, "ERROR", null, null);
+            return new TemplateResponse(false, "PARTIDA_NO_EN_JUEGO", null, null);
         }
 
         // regla 2: es el turno del jugador
         if (!partida.esTurnoDe(playerId)) {
-            return new TemplateResponse(false, "ERROR", null, null);
+            return new TemplateResponse(false, "NO_ES_TU_TURNO", null, null);
         }
 
         // obtengo jugador y valido existencia
         Jugador jugador = partida.buscarJugadorPorId(playerId);
         if (jugador == null) {
-            return new TemplateResponse(false, "ERROR", null, null);
+            return new TemplateResponse(false, "PLAYER_NO_ENCONTRADO", null, null);
         }
 
         // regla 3: el dron debe pertenecerle
         Dron dron = jugador.buscarDronPorId(dronId);
         if (dron == null) {
-            return new TemplateResponse(false, "ERROR", null, null);
+            return new TemplateResponse(false, "DRON_NO_PERTENECE_AL_JUGADOR", null, null);
         }
 
-        // regla 4: no había seleccionado otro dron previamente
-        if (jugador.getDronSeleccionado() != null) {
-            return new TemplateResponse(false, "ERROR", null, null);
+        String dronActual = jugador.getDronSeleccionado();
+        if (dronActual != null && dronActual.equals(dronId)) {
+            return new TemplateResponse(true, "OK", jugador.getEquipo().name(), dronId);
         }
 
         // todas las reglas cumplidas: guardar selección y persistir
@@ -275,7 +275,7 @@ public class ServicioPartida {
 
         Jugador jugador = partida.buscarJugadorPorId(playerId);
         if (jugador == null) {
-            return new TemplateResponse(false, "ERROR", null, null);
+            return new TemplateResponse(false, "PLAYER_NO_ENCONTRADO", null, null);
         }
 
         if (!partida.esTurnoDe(playerId)) {
@@ -288,12 +288,12 @@ public class ServicioPartida {
 
         String seleccion = jugador.getDronSeleccionado();
         if (seleccion == null) {
-            return new TemplateResponse(false, "ERROR", null, null);
+            return new TemplateResponse(false, "SIN_DRON_SELECCIONADO", null, null);
         }
 
         Dron dron = jugador.buscarDronPorId(seleccion);
-        if (dron == null) {
-            return new TemplateResponse(false, "ERROR", null, null);
+        if (dron == null || !dron.estaVivo()) {
+            return new TemplateResponse(false, "DRON_INVALIDO_O_DESTRUIDO", null, null);
         }
 
         int actualX = dron.getPosicion().getX();
@@ -302,22 +302,16 @@ public class ServicioPartida {
         int dy = filaDestino - actualY;
 
         if (Math.abs(dx) > dron.getRangoMovimiento() || Math.abs(dy) > dron.getRangoMovimiento()) {
-            return new TemplateResponse(false, "ERROR", null, null);
+            return new TemplateResponse(false, "FUERA_DE_RANGO", null, null);
         }
 
         if (!estaEnTablero(colDestino, filaDestino)) {
-            return new TemplateResponse(false, "ERROR", null, null);
+            return new TemplateResponse(false, "FUERA_DE_TABLERO", null, null);
         }
 
-        // nueva validación: celda de destino libre
-        for (Jugador j : java.util.List.of(partida.getJugador1(), partida.getJugador2())) {
-            if (j == null) continue;
-            for (Dron d : j.getDrones()) {
-                if (d.getPosicion().getX() == colDestino && d.getPosicion().getY() == filaDestino) {
-                    // destino ya ocupado
-                    return new TemplateResponse(false, "ERROR", null, null);
-                }
-            }
+        // nueva validación: celda de destino libre (solo drones vivos)
+        if (celdaOcupadaPorDron(partida, colDestino, filaDestino)) {
+            return new TemplateResponse(false, "CELDA_OCUPADA", null, null);
         }
 
         // puede existir validación adicional en Dron.mover, pero el rango ya
@@ -928,6 +922,7 @@ public class ServicioPartida {
         int origenX = dron.getPosicion().getX();
         int origenY = dron.getPosicion().getY();
         int rango = dron.getRangoAtaque();
+        Jugador jugadorEnemigo = partida.getJugador1().getId().equals(jugador.getId()) ? partida.getJugador2() : partida.getJugador1();
 
         for (int dy = -rango; dy <= rango; dy++) {
             for (int dx = -rango; dx <= rango; dx++) {
@@ -935,6 +930,27 @@ public class ServicioPartida {
                 int x = origenX + dx;
                 int y = origenY + dy;
                 if (!estaEnTablero(x, y)) continue;
+
+                boolean tieneObjetivo = false;
+                if (jugadorEnemigo != null) {
+                    for (Dron dronEnemigo : jugadorEnemigo.getDrones()) {
+                        if (dronEnemigo.estaVivo()
+                                && dronEnemigo.getPosicion().getX() == x
+                                && dronEnemigo.getPosicion().getY() == y) {
+                            tieneObjetivo = true;
+                            break;
+                        }
+                    }
+
+                    if (!tieneObjetivo
+                            && jugadorEnemigo.getPorta() != null
+                            && !jugadorEnemigo.getPorta().estaDestruido()
+                            && jugadorEnemigo.getPorta().ocupa(new Posicion(x, y))) {
+                        tieneObjetivo = true;
+                    }
+                }
+
+                if (!tieneObjetivo) continue;
                 celdas.add(new CeldaView(x, y));
             }
         }
@@ -983,6 +999,9 @@ public class ServicioPartida {
             jugadorTurnoActual.setDronSeleccionado(null);
             jugadorTurnoActual.setAccionTurno(Jugador.AccionTurno.NINGUNA);
             jugadorTurnoActual.resetAccionesTurno();
+            for (Dron dron : jugadorTurnoActual.getDrones()) {
+                dron.resetAccionesTurno();
+            }
         }
 
         if (partida.getTurnoDe() == Equipo.NAVAL) {

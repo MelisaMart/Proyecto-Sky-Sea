@@ -384,4 +384,47 @@ public class ServicioPartidaShootTest {
         assertFalse(resp2.ok);
         assertEquals("YA_DISPARO_EN_ESTE_TURNO", resp2.estado);
     }
+
+    @Test
+    void testMismoDronPuedeMoverseDeNuevoTrasCambioDeTurno() {
+        Partida partida = dao.loadActiva();
+        Jugador jug1 = partida.getJugador1(); // NAVAL
+        Jugador jug2 = partida.getJugador2(); // AEREO
+
+        partida.setTurnoDe(Equipo.NAVAL);
+
+        Dron dron = jug1.getDrones().get(0);
+        jug1.setDronSeleccionado(dron.getId());
+
+        ServicioPartida.AvailableMovesResponse moves1 = servicio.obtenerMovimientosDisponibles(jug1.getId());
+        assertTrue(moves1.ok);
+        assertFalse(moves1.celdas.isEmpty());
+
+        int filaMove1 = moves1.celdas.get(0).y;
+        int colMove1 = moves1.celdas.get(0).x;
+        ServicioPartida.TemplateResponse respMove1 = servicio.moverDron(jug1.getId(), filaMove1, colMove1);
+        assertTrue(respMove1.ok);
+        assertEquals(colMove1, dron.getPosicion().getX());
+        assertEquals(filaMove1, dron.getPosicion().getY());
+
+        servicio.terminarTurno(jug1.getId());
+        servicio.terminarTurno(jug2.getId());
+
+        jug1.setDronSeleccionado(dron.getId());
+        ServicioPartida.AvailableMovesResponse moves2 = servicio.obtenerMovimientosDisponibles(jug1.getId());
+        assertTrue(moves2.ok);
+        assertFalse(moves2.celdas.isEmpty());
+
+        int xAntesSegundoMovimiento = dron.getPosicion().getX();
+        int yAntesSegundoMovimiento = dron.getPosicion().getY();
+        int filaMove2 = moves2.celdas.get(0).y;
+        int colMove2 = moves2.celdas.get(0).x;
+        ServicioPartida.TemplateResponse respMove2 = servicio.moverDron(jug1.getId(), filaMove2, colMove2);
+
+        assertTrue(respMove2.ok);
+        assertEquals(colMove2, dron.getPosicion().getX());
+        assertEquals(filaMove2, dron.getPosicion().getY());
+        assertFalse(dron.getPosicion().getX() == xAntesSegundoMovimiento
+                && dron.getPosicion().getY() == yAntesSegundoMovimiento);
+    }
 }
