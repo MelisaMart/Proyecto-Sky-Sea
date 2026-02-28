@@ -314,6 +314,11 @@ public class ServicioPartida {
             return new TemplateResponse(false, "CELDA_OCUPADA", null, null);
         }
 
+        // no se permite mover un dron sobre ninguna celda ocupada por porta
+        if (celdaOcupadaPorPorta(partida, colDestino, filaDestino)) {
+            return new TemplateResponse(false, "CELDA_OCUPADA", null, null);
+        }
+
         // puede existir validación adicional en Dron.mover, pero el rango ya
         // se comprobó; usamos el método para mantener banderas internas.
         dron.mover(dx, dy);
@@ -401,6 +406,7 @@ public class ServicioPartida {
                 int y = origenY + dy;
                 if (!estaEnTablero(x, y)) continue;
                 if (celdaOcupadaPorDron(partida, x, y)) continue;
+                if (celdaOcupadaPorPorta(partida, x, y)) continue;
                 celdas.add(new CeldaView(x, y));
             }
         }
@@ -536,6 +542,17 @@ public class ServicioPartida {
                 if (d.estaVivo() && d.getPosicion().getX() == x && d.getPosicion().getY() == y) {
                     return true;
                 }
+            }
+        }
+        return false;
+    }
+
+    private boolean celdaOcupadaPorPorta(Partida partida, int x, int y) {
+        Posicion posicion = new Posicion(x, y);
+        for (Jugador j : List.of(partida.getJugador1(), partida.getJugador2())) {
+            if (j == null || j.getPorta() == null) continue;
+            if (j.getPorta().ocupa(posicion)) {
+                return true;
             }
         }
         return false;

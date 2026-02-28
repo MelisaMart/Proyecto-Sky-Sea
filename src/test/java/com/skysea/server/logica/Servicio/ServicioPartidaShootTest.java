@@ -349,10 +349,6 @@ public class ServicioPartidaShootTest {
         Dron dron1 = jug1.getDrones().get(0);
         jug1.setDronSeleccionado(dron1.getId());
 
-        // Primer disparo válido a objetivo enemigo
-        int xOrigen = dron1.getPosicion().getX();
-        int yOrigen = dron1.getPosicion().getY();
-
         Dron dronEnemigo = jug2.getDrones().get(0);
         int xObjetivo = dronEnemigo.getPosicion().getX();
         int yObjetivo = dronEnemigo.getPosicion().getY();
@@ -426,5 +422,44 @@ public class ServicioPartidaShootTest {
         assertEquals(filaMove2, dron.getPosicion().getY());
         assertFalse(dron.getPosicion().getX() == xAntesSegundoMovimiento
                 && dron.getPosicion().getY() == yAntesSegundoMovimiento);
+    }
+
+    @Test
+    void testNoMoverSobrePortaPeroSiDispararAlPorta() {
+        Partida partida = dao.loadActiva();
+        Jugador jug1 = partida.getJugador1(); // NAVAL
+        Jugador jug2 = partida.getJugador2(); // AEREO
+
+        partida.setTurnoDe(Equipo.NAVAL);
+
+        Dron dron = jug1.getDrones().get(0);
+        jug1.setDronSeleccionado(dron.getId());
+
+        Posicion celdaPortaEnemiga = jug2.getPorta().getCeldasOcupadas().get(0);
+        int xPorta = celdaPortaEnemiga.getX();
+        int yPorta = celdaPortaEnemiga.getY();
+
+        int xOrigen = xPorta - 1;
+        if (xOrigen < Reglas.TABLERO_X_MIN) {
+            xOrigen = xPorta + 1;
+        }
+        dron.getPosicion().setX(xOrigen);
+        dron.getPosicion().setY(yPorta);
+
+        ServicioPartida.AvailableMovesResponse moves = servicio.obtenerMovimientosDisponibles(jug1.getId());
+        assertTrue(moves.ok);
+        boolean portaApareceComoMovible = moves.celdas.stream()
+                .anyMatch(c -> c.x == xPorta && c.y == yPorta);
+        assertFalse(portaApareceComoMovible);
+
+        ServicioPartida.TemplateResponse moverSobrePorta = servicio.moverDron(jug1.getId(), yPorta, xPorta);
+        assertFalse(moverSobrePorta.ok);
+        assertEquals("CELDA_OCUPADA", moverSobrePorta.estado);
+
+        ServicioPartida.AvailableShotsResponse shots = servicio.obtenerDisparosDisponibles(jug1.getId());
+        assertTrue(shots.ok);
+        boolean portaApareceComoDisparable = shots.celdas.stream()
+                .anyMatch(c -> c.x == xPorta && c.y == yPorta);
+        assertTrue(portaApareceComoDisparable);
     }
 }
