@@ -882,7 +882,7 @@
     function limpiarRenderPortasTablero() {
       celdas.forEach(({ celda }) => {
         celda.classList.remove('ocupada-puerto');
-        celda.querySelectorAll('img[data-porta-render="1"]').forEach((img) => img.remove());
+        celda.querySelectorAll('img[data-porta-render="1"], img.porta-aereo-2x5, img.porta-aereo-vertical-5x2, img.porta-naval-completo-7-celdas, img.porta-naval-vertical-7-celdas').forEach((img) => img.remove());
       });
     }
 
@@ -891,8 +891,11 @@
         return equipo === 'AEREO' ? 'porta-aereo-2x5' : 'porta-naval-completo-7-celdas';
       }
 
-      const filaBase = celdasPorta[0].y;
-      const esHorizontal = celdasPorta.every((c) => c.y === filaBase);
+      const filas = celdasPorta.map((c) => Number(c.y));
+      const cols = celdasPorta.map((c) => Number(c.x));
+      const spanFilas = Math.max(...filas) - Math.min(...filas) + 1;
+      const spanCols = Math.max(...cols) - Math.min(...cols) + 1;
+      const esHorizontal = spanCols >= spanFilas;
 
       if (equipo === 'AEREO') {
         return esHorizontal ? 'porta-aereo-2x5' : 'porta-aereo-vertical-5x2';
@@ -905,7 +908,12 @@
       if (!board || !Array.isArray(board.portas)) return;
       const miEquipo = board.miEquipo || getSessionValue('equipoAsignado');
 
-      limpiarRenderPortasTablero();
+      celdas.forEach(({ celda }) => {
+        celda.classList.remove('ocupada-puerto');
+        celda.querySelectorAll('img.porta-aereo-2x5:not([data-porta-render="1"]), img.porta-aereo-vertical-5x2:not([data-porta-render="1"]), img.porta-naval-completo-7-celdas:not([data-porta-render="1"]), img.porta-naval-vertical-7-celdas:not([data-porta-render="1"])').forEach((imgLegacy) => imgLegacy.remove());
+      });
+
+      const renderDeseado = new Map();
 
       board.portas.forEach((porta) => {
         const celdasPorta = Array.isArray(porta?.celdas) ? porta.celdas : [];
@@ -928,20 +936,64 @@
         }
 
         const ancla = celdasOrdenadas[0];
-        const celdaAncla = celdas.find((x) => x.fila === Number(ancla.y) && x.col === Number(ancla.x));
+        const key = `${porta.equipo}-${Number(ancla.y)}-${Number(ancla.x)}-${celdasOrdenadas.length}`;
+        renderDeseado.set(key, {
+          key,
+          filaAncla: Number(ancla.y),
+          colAncla: Number(ancla.x),
+          clase: obtenerClasePortaPorForma(celdasOrdenadas, porta.equipo),
+          src: porta.equipo === 'AEREO'
+            ? '/frontend/Imagenes/PortaAereo/PortaAereoVistaDesdeArriba.png'
+            : '/frontend/Imagenes/PortaNaval/PortaNavalVistaDeArriba.png',
+          alt: porta.equipo === 'AEREO' ? 'Porta Aéreo' : 'Porta Naval'
+        });
+      });
+
+      const existentes = [];
+      celdas.forEach(({ celda, fila, col }) => {
+        celda.querySelectorAll('img[data-porta-render="1"]').forEach((img) => {
+          existentes.push({
+            img,
+            celda,
+            fila,
+            col,
+            key: img.dataset.portaKey || ''
+          });
+        });
+      });
+
+      const usados = new Set();
+
+      renderDeseado.forEach((objetivo, key) => {
+        const celdaAncla = celdas.find((x) => x.fila === objetivo.filaAncla && x.col === objetivo.colAncla);
         if (!celdaAncla) return;
 
-        const img = document.createElement('img');
-        img.dataset.portaRender = '1';
-        if (porta.equipo === 'AEREO') {
-          img.src = '/frontend/Imagenes/PortaAereo/PortaAereoVistaDesdeArriba.png';
-          img.alt = 'Porta Aéreo';
-        } else {
-          img.src = '/frontend/Imagenes/PortaNaval/PortaNavalVistaDeArriba.png';
-          img.alt = 'Porta Naval';
+        let renderExistente = existentes.find((r) => r.key === key);
+        let img = renderExistente?.img;
+
+        if (!img) {
+          img = document.createElement('img');
+          img.dataset.portaRender = '1';
+          img.dataset.portaKey = key;
         }
-        img.className = obtenerClasePortaPorForma(celdasOrdenadas, porta.equipo);
-        celdaAncla.celda.appendChild(img);
+
+        if (img.parentElement !== celdaAncla.celda) {
+          celdaAncla.celda.appendChild(img);
+        }
+
+        if (img.getAttribute('src') !== objetivo.src) {
+          img.setAttribute('src', objetivo.src);
+        }
+        img.setAttribute('alt', objetivo.alt);
+        img.className = objetivo.clase;
+        img.dataset.portaKey = key;
+
+        usados.add(key);
+      });
+
+      existentes.forEach((renderActual) => {
+        if (usados.has(renderActual.key)) return;
+        renderActual.img.remove();
       });
     }
 
@@ -1220,48 +1272,6 @@
           alert('Aún no se pudo cargar la plantilla de despliegue.');
           return;
         }
-
-        formacion.puertos.forEach((puerto, index) => {
-          const celdaData = celdas.find(c => c.fila === puerto.fila && c.col === puerto.col);
-          if (celdaData) {
-            celdaData.celda.classList.add('ocupada-puerto');
-            
-            if (index === 0) {
-              const portaImg = document.createElement('img');
-              
-              const esPortaAereo = puerto.tipo === 'PortaAereo';
-              const esHorizontal = formacion.puertos.every(p => p.fila === puerto.fila);
-              
-              if (esPortaAereo) {
-                portaImg.src = `/frontend/Imagenes/PortaAereo/PortaAereoVistaDesdeArriba.png`;
-                portaImg.alt = 'Porta Aéreo';
-                const filasPuerto = formacion.puertos.map(p => p.fila);
-                const colsPuerto = formacion.puertos.map(p => p.col);
-                const spanFilas = Math.max(...filasPuerto) - Math.min(...filasPuerto) + 1;
-                const spanCols = Math.max(...colsPuerto) - Math.min(...colsPuerto) + 1;
-
-                if (spanCols >= spanFilas) {
-                  portaImg.className = 'porta-aereo-2x5';
-                } else {
-                  portaImg.className = 'porta-aereo-vertical-5x2';
-                }
-              } else {
-                portaImg.src = `/frontend/Imagenes/PortaNaval/PortaNavalVistaDeArriba.png`;
-                portaImg.alt = 'Porta Naval';
-                
-                if (esHorizontal) {
-                  portaImg.className = 'porta-naval-completo-7-celdas';
-                } else {
-                  portaImg.className = 'porta-naval-vertical-7-celdas';
-                }
-              }
-              
-              portaImg.onload = () => console.log('Imagen Porta cargada');
-              portaImg.onerror = () => console.error('Error al cargar imagen del porta');
-              celdaData.celda.appendChild(portaImg);
-            }
-          }
-        });
 
         actualizarRenderPortasDesdeBoard(board);
         actualizarRenderDronesDesdeBoard(board);
