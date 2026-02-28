@@ -121,6 +121,7 @@
     const indicadorTurno = document.getElementById('indicadorTurno');
     const cronometroTurno = document.getElementById('cronometroTurno');
     const btnMover = document.getElementById('btnMover');
+    const btnDisparar = document.getElementById('btnDisparar');
     const hudTipoTuEquipo = document.getElementById('hudTipoTuEquipo');
     const hudTipoEnemigo = document.getElementById('hudTipoEnemigo');
     const hudDronesTu = document.getElementById('hudDronesTu');
@@ -293,6 +294,8 @@
     let selectedDron = null;               // {id,fila,col,cell}
     let moveMode = false;
     let moveCells = [];                    // array de {cell,handler}
+    let shootMode = false;
+    let shootCells = [];
 
     function exitMoveMode() {
       moveMode = false;
@@ -307,60 +310,147 @@
       }
     }
 
+    function exitShootMode() {
+      shootMode = false;
+      shootCells.forEach(({cell, handler}) => {
+        cell.classList.remove('movible');
+        cell.removeEventListener('click', handler);
+      });
+      shootCells = [];
+      if (btnDisparar) {
+        btnDisparar.disabled = !selectedDron;
+      }
+    }
+
+    function enterShootMode() {
+      if (!selectedDron || shootMode) return;
+      shootMode = true;
+
+      (async () => {
+        try {
+          const playerIdShoot = getPlayerIdActual();
+          if (!playerIdShoot) {
+            alert('Jugador no identificado');
+            exitShootMode();
+            return;
+          }
+
+          const disponibles = await apiRequest(`/availableShots2?playerId=${encodeURIComponent(playerIdShoot)}`);
+          if (!disponibles.ok) {
+            alert('No se puede disparar: ' + (disponibles.estado || 'ERROR'));
+            exitShootMode();
+            return;
+          }
+
+          const celdasDisponibles = disponibles.celdas || [];
+          celdasDisponibles.forEach(({x, y}) => {
+            const celdaData = celdas.find(c => c.col === x && c.fila === y);
+            if (!celdaData) return;
+
+            const celda = celdaData.celda;
+            celda.classList.add('movible');
+            const handler = async () => {
+              try {
+                const playerIdShootActual = getPlayerIdActual();
+                if (!playerIdShootActual) {
+                  alert('Jugador no identificado');
+                  return;
+                }
+
+                const data = await apiRequest(
+                  `/shoot2?playerId=${encodeURIComponent(playerIdShootActual)}&fila=${y}&col=${x}`,
+                  'POST'
+                );
+
+                if (data.ok) {
+                  if (btnDisparar) btnDisparar.disabled = true;
+                  exitShootMode();
+                  await refreshPartidaState();
+                } else {
+                  alert('Disparo inválido: ' + (data.estado || 'ERROR'));
+                }
+              } catch (err) {
+                alert('Error al disparar: ' + err.message);
+              }
+            };
+
+            celda.addEventListener('click', handler);
+            shootCells.push({ cell: celda, handler });
+          });
+        } catch (error) {
+          alert('No se pudieron obtener disparos válidos: ' + error.message);
+          exitShootMode();
+        }
+      })();
+    }
+
     function enterMoveMode() {
       if (!selectedDron || moveMode) return;
       moveMode = true;
-      const {fila: f0, col: c0} = selectedDron;
-      celdas.forEach(({celda, fila, col}) => {
-        const dx = col - c0;
-        const dy = fila - f0;
-        // no permitir moverse a celdas ya ocupadas por un dron
-        if (celda.classList.contains('ocupada-dron') || celda.dataset.dronId) {
-          return;
-        }
-        if (Math.abs(dx) <= 2 && Math.abs(dy) <= 2 && !(dx === 0 && dy === 0)) {
-          celda.classList.add('movible');
-          const handler = async () => {
-            try {
-              const playerIdMover = getPlayerIdActual();
-              if (!playerIdMover) {
-                alert('Jugador no identificado');
-                return;
-              }
-              const resp = await fetch(
-                `${API}/move2?playerId=${encodeURIComponent(playerIdMover)}&fila=${fila}&col=${col}`,
-                { method: 'POST' }
-              );
-              const data = await resp.json();
-              if (data.ok) {
-                // trasladar imagen y clases
-                const oldCell = selectedDron.cell;
-                const img = oldCell.querySelector('img');
-                if (img) celda.appendChild(img);
-                // mover identificador y clases
-                celda.dataset.dronId = selectedDron.id;
-                delete oldCell.dataset.dronId;
-                oldCell.classList.remove('ocupada-dron','seleccionado');
-                celda.classList.add('ocupada-dron','seleccionado');
-                selectedDron.cell = celda;
-                selectedDron.fila = fila;
-                selectedDron.col = col;
+      (async () => {
+        try {
+          const playerIdMover = getPlayerIdActual();
+          if (!playerIdMover) {
+            alert('Jugador no identificado');
+            exitMoveMode();
+            return;
+          }
 
-                // consumió acción: no le permitimos mover otra vez
-                if (btnMover) btnMover.disabled = true;
-                exitMoveMode();
-              } else {
-                alert('Movimiento inválido: ' + (data.estado || 'ERROR'));
-                // mantener el modo para intentar otra casilla
+          const disponibles = await apiRequest(`/availableMoves2?playerId=${encodeURIComponent(playerIdMover)}`);
+          if (!disponibles.ok) {
+            alert('No se puede mover: ' + (disponibles.estado || 'ERROR'));
+            exitMoveMode();
+            return;
+          }
+
+          const celdasDisponibles = disponibles.celdas || [];
+          celdasDisponibles.forEach(({x, y}) => {
+            const celdaData = celdas.find(c => c.col === x && c.fila === y);
+            if (!celdaData) return;
+
+            const celda = celdaData.celda;
+            celda.classList.add('movible');
+            const handler = async () => {
+              try {
+                const playerIdMoverActual = getPlayerIdActual();
+                if (!playerIdMoverActual) {
+                  alert('Jugador no identificado');
+                  return;
+                }
+                const resp = await fetch(
+                  `${API}/move2?playerId=${encodeURIComponent(playerIdMoverActual)}&fila=${y}&col=${x}`,
+                  { method: 'POST' }
+                );
+                const data = await resp.json();
+                if (data.ok) {
+                  const oldCell = selectedDron.cell;
+                  const img = oldCell.querySelector('img');
+                  if (img) celda.appendChild(img);
+                  celda.dataset.dronId = selectedDron.id;
+                  delete oldCell.dataset.dronId;
+                  oldCell.classList.remove('ocupada-dron','seleccionado');
+                  celda.classList.add('ocupada-dron','seleccionado');
+                  selectedDron.cell = celda;
+                  selectedDron.fila = y;
+                  selectedDron.col = x;
+
+                  if (btnMover) btnMover.disabled = true;
+                  exitMoveMode();
+                } else {
+                  alert('Movimiento inválido: ' + (data.estado || 'ERROR'));
+                }
+              } catch (err) {
+                alert('Error al mover dron: ' + err.message);
               }
-            } catch (err) {
-              alert('Error al mover dron: ' + err.message);
-            }
-          };
-          celda.addEventListener('click', handler);
-          moveCells.push({cell: celda, handler});
+            };
+            celda.addEventListener('click', handler);
+            moveCells.push({cell: celda, handler});
+          });
+        } catch (error) {
+          alert('No se pudieron obtener movimientos válidos: ' + error.message);
+          exitMoveMode();
         }
-      });
+      })();
     }
 
     function estrategiaDefaultPorEquipo(equipo) {
@@ -413,7 +503,36 @@
       };
     }
 
-    function calcularResumenEquipo(board, equipo) {
+    function calcularResumenEquipo(board, equipo, resumenPreferido, resumenAlterno) {
+      const resumenMi = board?.resumenMiEquipo;
+      const resumenEnemigo = board?.resumenEnemigo;
+      const candidatos = [resumenPreferido, resumenAlterno, resumenMi, resumenEnemigo].filter(Boolean);
+      const maxEsperado = impactosMaximosPorta(equipo);
+
+      let resumenBackend = candidatos.find(r => r?.equipo === equipo);
+      if (!resumenBackend) {
+        resumenBackend = candidatos.find(r => r?.impactosMaximosPorta === maxEsperado);
+      }
+      if (!resumenBackend) {
+        resumenBackend = candidatos.find(r =>
+          (r?.dronesActivos ?? 0) > 0 ||
+          (r?.municionTotal ?? 0) > 0 ||
+          (r?.impactosRestantesPorta ?? 0) > 0
+        );
+      }
+      if (!resumenBackend) {
+        resumenBackend = candidatos[0] || null;
+      }
+
+      if (resumenBackend) {
+        return {
+          vidaRestante: resumenBackend.impactosRestantesPorta ?? 0,
+          vidaMax: resumenBackend.impactosMaximosPorta ?? impactosMaximosPorta(equipo),
+          dronesActivos: resumenBackend.dronesActivos ?? 0,
+          municionRestante: resumenBackend.municionTotal ?? 0
+        };
+      }
+
       const drones = (board.drones || []).filter(d => d.equipo === equipo && !d.destruido);
       const porta = (board.portas || []).find(p => p.equipo === equipo);
       const vidaMax = impactosMaximosPorta(equipo);
@@ -435,8 +554,8 @@
       const miEquipo = board.miEquipo || getSessionValue('equipoAsignado') || 'NAVAL';
       const enemigo = equipoContrario(miEquipo);
 
-      const resumenTu = calcularResumenEquipo(board, miEquipo);
-      const resumenEnemigo = calcularResumenEquipo(board, enemigo);
+      const resumenTu = calcularResumenEquipo(board, miEquipo, board?.resumenMiEquipo, board?.resumenEnemigo);
+      const resumenEnemigo = calcularResumenEquipo(board, enemigo, board?.resumenEnemigo, board?.resumenMiEquipo);
 
       if (hudTipoTuEquipo) hudTipoTuEquipo.textContent = nombreEquipo(miEquipo);
       if (hudTipoEnemigo) hudTipoEnemigo.textContent = nombreEquipo(enemigo);
@@ -745,6 +864,9 @@
       if (btnMover) {
         btnMover.addEventListener('click', enterMoveMode);
       }
+      if (btnDisparar) {
+        btnDisparar.addEventListener('click', enterShootMode);
+      }
       // handler botón flecha "terminar turno"
       const btnPlay = document.getElementById('btnPlay');
       if (btnPlay) {
@@ -816,8 +938,12 @@
                 };
                 // activar botón mover y cancelar cualquier modo previo
                 exitMoveMode();
+                exitShootMode();
                 if (btnMover) {
                   btnMover.disabled = false;
+                }
+                if (btnDisparar) {
+                  btnDisparar.disabled = false;
                 }
               } else {
                 alert('No se pudo seleccionar el dron: ' + (data.estado || 'ERROR'));

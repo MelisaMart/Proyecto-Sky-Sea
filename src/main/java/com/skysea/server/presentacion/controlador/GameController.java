@@ -151,6 +151,34 @@ public class GameController {
         }
     }
 
+    @GetMapping("/availableMoves2")
+    public Object availableMoves2(@RequestParam String playerId) {
+        try {
+            ServicioPartida.AvailableMovesResponse r = servicioPartida.obtenerMovimientosDisponibles(playerId);
+            java.util.Map<String, Object> out = new java.util.HashMap<>();
+            out.put("ok", r.ok);
+            out.put("estado", r.estado);
+            out.put("celdas", r.celdas);
+            return out;
+        } catch (Exception e) {
+            return java.util.Map.of("error", e.getMessage());
+        }
+    }
+
+    @GetMapping("/availableShots2")
+    public Object availableShots2(@RequestParam String playerId) {
+        try {
+            ServicioPartida.AvailableShotsResponse r = servicioPartida.obtenerDisparosDisponibles(playerId);
+            java.util.Map<String, Object> out = new java.util.HashMap<>();
+            out.put("ok", r.ok);
+            out.put("estado", r.estado);
+            out.put("celdas", r.celdas);
+            return out;
+        } catch (Exception e) {
+            return java.util.Map.of("error", e.getMessage());
+        }
+    }
+
     @PostMapping("/selectDrone2")
     public Object selectDrone2(@RequestParam String playerId, @RequestParam String dronId) {
         try {

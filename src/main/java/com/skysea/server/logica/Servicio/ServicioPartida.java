@@ -3,6 +3,11 @@ package com.skysea.server.logica.Servicio;
 import com.skysea.server.logica.model.*;
 import com.skysea.server.persistencia.dao.IPartidaDAO;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 public class ServicioPartida {
 
     private final IPartidaDAO dao;
@@ -226,13 +231,22 @@ public class ServicioPartida {
      */
     public synchronized TemplateResponse moverDron(String playerId, int filaDestino, int colDestino) {
         Partida partida = dao.loadActiva();
+
+        if (partida.getEstado() != EstadoPartida.EN_JUEGO) {
+            return new TemplateResponse(false, "PARTIDA_NO_EN_JUEGO", null, null);
+        }
+
         Jugador jugador = partida.buscarJugadorPorId(playerId);
         if (jugador == null) {
             return new TemplateResponse(false, "ERROR", null, null);
         }
 
-        if (jugador.yaMovioEsteTurno()) {
-            return new TemplateResponse(false, "YA_MOVIO_EN_ESTE_TURNO", null, null);
+        if (!partida.esTurnoDe(playerId)) {
+            return new TemplateResponse(false, "NO_ES_TU_TURNO", null, null);
+        }
+
+        if (jugador.getAccionTurno() != Jugador.AccionTurno.NINGUNA) {
+            return new TemplateResponse(false, "ACCION_YA_REALIZADA", null, null);
         }
 
         String seleccion = jugador.getDronSeleccionado();
@@ -250,7 +264,11 @@ public class ServicioPartida {
         int dx = colDestino - actualX;
         int dy = filaDestino - actualY;
 
-        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+        if (Math.abs(dx) > dron.getRangoMovimiento() || Math.abs(dy) > dron.getRangoMovimiento()) {
+            return new TemplateResponse(false, "ERROR", null, null);
+        }
+
+        if (!estaEnTablero(colDestino, filaDestino)) {
             return new TemplateResponse(false, "ERROR", null, null);
         }
 
@@ -282,11 +300,19 @@ public class ServicioPartida {
             throw new IllegalArgumentException("PLAYER_NO_ENCONTRADO");
         }
 
-        java.util.List<PortaView> portas = new java.util.ArrayList<>();
-        java.util.List<DronView> drones = new java.util.ArrayList<>();
+        Jugador enemigo = obtenerJugadorEnemigo(partida, jugador.getId());
+        Set<String> visibles = calcularCeldasVisibles(jugador);
 
-        agregarUnidadesJugador(partida.getJugador1(), portas, drones);
-        agregarUnidadesJugador(partida.getJugador2(), portas, drones);
+        List<PortaView> portas = new ArrayList<>();
+        List<DronView> drones = new ArrayList<>();
+
+        agregarUnidadesPropias(jugador, portas, drones);
+        agregarUnidadesEnemigasVisibles(enemigo, visibles, portas, drones);
+
+        EquipoResumenView resumenPropio = construirResumenEquipo(jugador);
+        EquipoResumenView resumenEnemigo = construirResumenEquipo(enemigo);
+
+        List<CeldaView> celdasVisibles = visibles.stream().map(this::keyToCelda).toList();
 
         return new BoardResponse(
                 jugador.getEquipo().name(),
@@ -294,24 +320,76 @@ public class ServicioPartida {
                 partida.getTurnoDe().name(),
                 partida.getNumeroTurno(),
                 portas,
-                drones
+                drones,
+                resumenPropio,
+                resumenEnemigo,
+                celdasVisibles
         );
     }
 
-    private void agregarUnidadesJugador(Jugador jugador, java.util.List<PortaView> portas, java.util.List<DronView> drones) {
+    public synchronized AvailableMovesResponse obtenerMovimientosDisponibles(String playerId) {
+        Partida partida = dao.loadActiva();
+        if (partida.getEstado() != EstadoPartida.EN_JUEGO) {
+            return new AvailableMovesResponse(false, "PARTIDA_NO_EN_JUEGO", List.of());
+        }
+
+        Jugador jugador = partida.buscarJugadorPorId(playerId);
+        if (jugador == null) {
+            return new AvailableMovesResponse(false, "PLAYER_NO_ENCONTRADO", List.of());
+        }
+
+        if (!partida.esTurnoDe(playerId)) {
+            return new AvailableMovesResponse(false, "NO_ES_TU_TURNO", List.of());
+        }
+
+        if (jugador.getAccionTurno() != Jugador.AccionTurno.NINGUNA) {
+            return new AvailableMovesResponse(false, "ACCION_YA_REALIZADA", List.of());
+        }
+
+        String dronSeleccionadoId = jugador.getDronSeleccionado();
+        if (dronSeleccionadoId == null) {
+            return new AvailableMovesResponse(false, "SIN_DRON_SELECCIONADO", List.of());
+        }
+
+        Dron dron = jugador.buscarDronPorId(dronSeleccionadoId);
+        if (dron == null || !dron.estaVivo()) {
+            return new AvailableMovesResponse(false, "DRON_INVALIDO_O_DESTRUIDO", List.of());
+        }
+
+        List<CeldaView> celdas = new ArrayList<>();
+        int origenX = dron.getPosicion().getX();
+        int origenY = dron.getPosicion().getY();
+        int rango = dron.getRangoMovimiento();
+
+        for (int dy = -rango; dy <= rango; dy++) {
+            for (int dx = -rango; dx <= rango; dx++) {
+                if (dx == 0 && dy == 0) continue;
+                int x = origenX + dx;
+                int y = origenY + dy;
+                if (!estaEnTablero(x, y)) continue;
+                if (celdaOcupadaPorDron(partida, x, y)) continue;
+                celdas.add(new CeldaView(x, y));
+            }
+        }
+
+        return new AvailableMovesResponse(true, "OK", celdas);
+    }
+
+    private void agregarUnidadesPropias(Jugador jugador, List<PortaView> portas, List<DronView> drones) {
         if (jugador == null) {
             return;
         }
 
         if (jugador.getPorta() != null) {
-            java.util.List<CeldaView> celdas = jugador.getPorta().getCeldasOcupadas().stream()
+            List<CeldaView> celdas = jugador.getPorta().getCeldasOcupadas().stream()
                     .map(p -> new CeldaView(p.getX(), p.getY()))
                     .toList();
             portas.add(new PortaView(
                     jugador.getPorta().getId(),
                     jugador.getEquipo().name(),
                     celdas,
-                    jugador.getPorta().estaDestruido()
+                    jugador.getPorta().estaDestruido(),
+                    jugador.getPorta().getImpactosRestantes()
             ));
         }
 
@@ -326,6 +404,174 @@ public class ServicioPartida {
                     d.getMunicion(),
                     !d.estaVivo()
             ));
+        }
+    }
+
+    private void agregarUnidadesEnemigasVisibles(Jugador enemigo, Set<String> celdasVisibles,
+                                                 List<PortaView> portas, List<DronView> drones) {
+        if (enemigo == null) {
+            return;
+        }
+
+        if (enemigo.getPorta() != null) {
+            List<CeldaView> celdasPorta = enemigo.getPorta().getCeldasOcupadas().stream()
+                    .map(p -> new CeldaView(p.getX(), p.getY()))
+                    .filter(c -> celdasVisibles.contains(celdaKey(c.x, c.y)))
+                    .toList();
+
+            if (!celdasPorta.isEmpty()) {
+                portas.add(new PortaView(
+                        enemigo.getPorta().getId(),
+                        enemigo.getEquipo().name(),
+                        celdasPorta,
+                        enemigo.getPorta().estaDestruido(),
+                        enemigo.getPorta().getImpactosRestantes()
+                ));
+            }
+        }
+
+        for (Dron d : enemigo.getDrones()) {
+            if (!celdasVisibles.contains(celdaKey(d.getPosicion().getX(), d.getPosicion().getY()))) {
+                continue;
+            }
+
+            drones.add(new DronView(
+                    d.getId(),
+                    enemigo.getEquipo().name(),
+                    d.getTipoProyectil() == TipoProyectil.BOMBA ? "DRON_AEREO" : "DRON_NAVAL",
+                    d.getPosicion().getX(),
+                    d.getPosicion().getY(),
+                    d.getVida(),
+                    d.getMunicion(),
+                    !d.estaVivo()
+            ));
+        }
+    }
+
+    private Set<String> calcularCeldasVisibles(Jugador jugador) {
+        Set<String> visibles = new HashSet<>();
+        if (jugador == null) {
+            return visibles;
+        }
+
+        for (Dron d : jugador.getDrones()) {
+            if (!d.estaVivo()) continue;
+            int x0 = d.getPosicion().getX();
+            int y0 = d.getPosicion().getY();
+            int rango = d.getRangoVision();
+
+            for (int dy = -rango; dy <= rango; dy++) {
+                for (int dx = -rango; dx <= rango; dx++) {
+                    int x = x0 + dx;
+                    int y = y0 + dy;
+                    if (!estaEnTablero(x, y)) continue;
+                    visibles.add(celdaKey(x, y));
+                }
+            }
+        }
+
+        return visibles;
+    }
+
+    private Jugador obtenerJugadorEnemigo(Partida partida, String playerId) {
+        if (partida.getJugador1() != null && partida.getJugador1().getId().equals(playerId)) {
+            return partida.getJugador2();
+        }
+        return partida.getJugador1();
+    }
+
+    private boolean celdaOcupadaPorDron(Partida partida, int x, int y) {
+        for (Jugador j : List.of(partida.getJugador1(), partida.getJugador2())) {
+            if (j == null) continue;
+            for (Dron d : j.getDrones()) {
+                if (d.estaVivo() && d.getPosicion().getX() == x && d.getPosicion().getY() == y) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private EquipoResumenView construirResumenEquipo(Jugador jugador) {
+        if (jugador == null) {
+            return new EquipoResumenView(null, 0, 0, 0, 0);
+        }
+
+        int dronesActivos = 0;
+        int municionTotal = 0;
+        for (Dron d : jugador.getDrones()) {
+            if (d.estaVivo()) {
+                dronesActivos++;
+            }
+            municionTotal += d.getMunicion();
+        }
+
+        int impactosRestantes = jugador.getPorta() != null ? jugador.getPorta().getImpactosRestantes() : 0;
+        int impactosMaximos = jugador.getEquipo() == Equipo.AEREO
+                ? Reglas.IMPACTOS_PORTA_AEREO
+                : Reglas.IMPACTOS_PORTA_NAVAL;
+
+        return new EquipoResumenView(
+                jugador.getEquipo().name(),
+                dronesActivos,
+                municionTotal,
+                impactosRestantes,
+                impactosMaximos
+        );
+    }
+
+    private boolean estaEnTablero(int x, int y) {
+        return x >= Reglas.TABLERO_X_MIN && x <= Reglas.TABLERO_X_MAX
+                && y >= Reglas.TABLERO_Y_MIN && y <= Reglas.TABLERO_Y_MAX;
+    }
+
+    private String celdaKey(int x, int y) {
+        return x + ":" + y;
+    }
+
+    private CeldaView keyToCelda(String key) {
+        String[] parts = key.split(":");
+        return new CeldaView(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
+    }
+
+    public static class AvailableMovesResponse {
+        public final boolean ok;
+        public final String estado;
+        public final List<CeldaView> celdas;
+
+        public AvailableMovesResponse(boolean ok, String estado, List<CeldaView> celdas) {
+            this.ok = ok;
+            this.estado = estado;
+            this.celdas = celdas;
+        }
+    }
+
+    public static class AvailableShotsResponse {
+        public final boolean ok;
+        public final String estado;
+        public final List<CeldaView> celdas;
+
+        public AvailableShotsResponse(boolean ok, String estado, List<CeldaView> celdas) {
+            this.ok = ok;
+            this.estado = estado;
+            this.celdas = celdas;
+        }
+    }
+
+    public static class EquipoResumenView {
+        public final String equipo;
+        public final int dronesActivos;
+        public final int municionTotal;
+        public final int impactosRestantesPorta;
+        public final int impactosMaximosPorta;
+
+        public EquipoResumenView(String equipo, int dronesActivos, int municionTotal,
+                                 int impactosRestantesPorta, int impactosMaximosPorta) {
+            this.equipo = equipo;
+            this.dronesActivos = dronesActivos;
+            this.municionTotal = municionTotal;
+            this.impactosRestantesPorta = impactosRestantesPorta;
+            this.impactosMaximosPorta = impactosMaximosPorta;
         }
     }
 
@@ -348,35 +594,46 @@ public class ServicioPartida {
         public final String estadoPartida;
         public final String turnoDe;
         public final int numeroTurno;
-        public final java.util.List<PortaView> portas;
-        public final java.util.List<DronView> drones;
+        public final List<PortaView> portas;
+        public final List<DronView> drones;
+        public final EquipoResumenView resumenMiEquipo;
+        public final EquipoResumenView resumenEnemigo;
+        public final List<CeldaView> celdasVisibles;
 
         public BoardResponse(String miEquipo,
                              String estadoPartida,
                              String turnoDe,
                              int numeroTurno,
-                             java.util.List<PortaView> portas,
-                             java.util.List<DronView> drones) {
+                             List<PortaView> portas,
+                             List<DronView> drones,
+                             EquipoResumenView resumenMiEquipo,
+                             EquipoResumenView resumenEnemigo,
+                             List<CeldaView> celdasVisibles) {
             this.miEquipo = miEquipo;
             this.estadoPartida = estadoPartida;
             this.turnoDe = turnoDe;
             this.numeroTurno = numeroTurno;
             this.portas = portas;
             this.drones = drones;
+            this.resumenMiEquipo = resumenMiEquipo;
+            this.resumenEnemigo = resumenEnemigo;
+            this.celdasVisibles = celdasVisibles;
         }
     }
 
     public static class PortaView {
         public final String id;
         public final String equipo;
-        public final java.util.List<CeldaView> celdas;
+        public final List<CeldaView> celdas;
         public final boolean destruido;
+        public final int impactosRestantes;
 
-        public PortaView(String id, String equipo, java.util.List<CeldaView> celdas, boolean destruido) {
+        public PortaView(String id, String equipo, List<CeldaView> celdas, boolean destruido, int impactosRestantes) {
             this.id = id;
             this.equipo = equipo;
             this.celdas = celdas;
             this.destruido = destruido;
+            this.impactosRestantes = impactosRestantes;
         }
     }
 
@@ -471,6 +728,10 @@ public class ServicioPartida {
             return new ShootResponse(false, "NO_ES_TU_TURNO", null, null, null, null, null);
         }
 
+        if (jugador.getAccionTurno() != Jugador.AccionTurno.NINGUNA) {
+            return new ShootResponse(false, "ACCION_YA_REALIZADA", null, null, null, null, null);
+        }
+
         if (jugador.yaDisparoEsteTurno()) {
             return new ShootResponse(false, "YA_DISPARO_EN_ESTE_TURNO", null, null, null, null, null);
         }
@@ -497,10 +758,15 @@ public class ServicioPartida {
         int dx = colDestino - xOrigen;
         int dy = filaDestino - yOrigen;
 
-        // TODO: reemplazar rango fijo 1 por cálculo real de visibilidad del dron misil
-        boolean enRango = Math.abs(dx) <= 1 && Math.abs(dy) <= 1 && !(dx == 0 && dy == 0);
+        boolean enRango = Math.abs(dx) <= dronDispara.getRangoAtaque()
+                && Math.abs(dy) <= dronDispara.getRangoAtaque()
+                && !(dx == 0 && dy == 0);
         if (!enRango) {
             return new ShootResponse(false, "FUERA_DE_RANGO", null, null, null, null, null);
+        }
+
+        if (!estaEnTablero(colDestino, filaDestino)) {
+            return new ShootResponse(false, "FUERA_DE_TABLERO", null, null, null, null, null);
         }
 
         // Consumir munición (antes de evaluar impacto)
@@ -547,6 +813,57 @@ public class ServicioPartida {
         jugador.marcarDisparoRealizado();
         dao.save(partida);
         return new ShootResponse(true, "OK", resultado, "NADA", dronDispara.getMunicion(), null, null);
+    }
+
+    public synchronized AvailableShotsResponse obtenerDisparosDisponibles(String playerId) {
+        Partida partida = dao.loadActiva();
+        if (partida.getEstado() != EstadoPartida.EN_JUEGO) {
+            return new AvailableShotsResponse(false, "PARTIDA_NO_EN_JUEGO", List.of());
+        }
+
+        Jugador jugador = partida.buscarJugadorPorId(playerId);
+        if (jugador == null) {
+            return new AvailableShotsResponse(false, "PLAYER_NO_ENCONTRADO", List.of());
+        }
+
+        if (!partida.esTurnoDe(playerId)) {
+            return new AvailableShotsResponse(false, "NO_ES_TU_TURNO", List.of());
+        }
+
+        if (jugador.getAccionTurno() != Jugador.AccionTurno.NINGUNA) {
+            return new AvailableShotsResponse(false, "ACCION_YA_REALIZADA", List.of());
+        }
+
+        String dronSeleccionadoId = jugador.getDronSeleccionado();
+        if (dronSeleccionadoId == null) {
+            return new AvailableShotsResponse(false, "SIN_DRON_SELECCIONADO", List.of());
+        }
+
+        Dron dron = jugador.buscarDronPorId(dronSeleccionadoId);
+        if (dron == null || !dron.estaVivo()) {
+            return new AvailableShotsResponse(false, "DRON_INVALIDO_O_DESTRUIDO", List.of());
+        }
+
+        if (dron.getMunicion() <= 0) {
+            return new AvailableShotsResponse(false, "SIN_MUNICION", List.of());
+        }
+
+        List<CeldaView> celdas = new ArrayList<>();
+        int origenX = dron.getPosicion().getX();
+        int origenY = dron.getPosicion().getY();
+        int rango = dron.getRangoAtaque();
+
+        for (int dy = -rango; dy <= rango; dy++) {
+            for (int dx = -rango; dx <= rango; dx++) {
+                if (dx == 0 && dy == 0) continue;
+                int x = origenX + dx;
+                int y = origenY + dy;
+                if (!estaEnTablero(x, y)) continue;
+                celdas.add(new CeldaView(x, y));
+            }
+        }
+
+        return new AvailableShotsResponse(true, "OK", celdas);
     }
 
     public synchronized Partida terminarTurno(String playerId) {

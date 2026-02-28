@@ -53,7 +53,6 @@ public class ServicioPartidaShootTest {
     void testShootFueraDeturno() {
         Partida partida = dao.loadActiva();
         Jugador jug1 = partida.getJugador1();
-        Jugador jug2 = partida.getJugador2();
 
         // Cambiar al turno de J2
         partida.setTurnoDe(Equipo.AEREO);
