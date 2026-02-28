@@ -712,26 +712,39 @@ main {
 /* Porta aéreo que ocupa 2x5 celdas */
 .porta-aereo-2x5 {
     position: absolute;
-    width: 340px;
-    height: 140px;
+    width: 250px;
+    height: 100px;
     object-fit: contain;
     object-position: center;
-    left: -35px;
-    top: -15px;
+    left: 125px;
+    top: 50px;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
     z-index: 10;
 }
 
 /* Porta aéreo vertical que ocupa 5x2 celdas */
 .porta-aereo-vertical-5x2 {
     position: absolute;
-    width: 340px;
-    height: 140px;
+    width: 250px;
+    height: 100px;
     object-fit: contain;
     object-position: center;
-    left: -120px;
-    top: 55px;
-    transform: rotate(90deg);
+    left: 50px;
+    top: 125px;
+    transform: translate(-50%, -50%) rotate(90deg);
+    pointer-events: none;
     z-index: 10;
+}
+
+.porta-naval-completo,
+.porta-naval-extendido,
+.porta-naval-grid,
+.porta-naval-completo-7-celdas,
+.porta-naval-vertical-7-celdas,
+.porta-aereo-2x5,
+.porta-aereo-vertical-5x2 {
+    pointer-events: none;
 }
 /* ================== MODAL DE INGRESO DE NOMBRE ================== */
 
