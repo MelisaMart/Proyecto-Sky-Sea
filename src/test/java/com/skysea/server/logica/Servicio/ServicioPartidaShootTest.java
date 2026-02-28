@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests unitarios para ServicioPartida.shoot2()
- * Validar reglas: una accion por turno, municion, rango, danio, persistencia
+ * Validar reglas: disparo por turno, municion, rango, danio, persistencia
  */
 
 
@@ -162,10 +162,10 @@ public class ServicioPartidaShootTest {
     }
 
     /**
-     * Test 5: Miss (celda vacía) consume munición → OK + MISS + municionRestante
+     * Test 5: No se permite disparar a celda vacía.
      */
     @Test
-    void testShootMissConsumeMunicion() {
+    void testShootACeldaVaciaDebeFallarSinConsumirMunicion() {
         Partida partida = dao.loadActiva();
         Jugador jug1 = partida.getJugador1();
 
@@ -181,11 +181,10 @@ public class ServicioPartidaShootTest {
         // Disparar a una celda vacía (no adyacente a ningún objetivo)
         ServicioPartida.ShootResponse resp = servicio.shoot2(jug1.getId(), yOrigen + 1, xOrigen + 1);
 
-        assertTrue(resp.ok);
-        assertEquals("OK", resp.estado);
-        assertEquals("MISS", resp.resultado);
-        assertEquals("NADA", resp.objetivo);
-        assertEquals(municionAntes - 1, resp.municionRestante);
+        assertFalse(resp.ok);
+        assertEquals("NO_HAY_OBJETIVO_ENEMIGO", resp.estado);
+        assertNull(resp.resultado);
+        assertEquals(municionAntes, dron1.getMunicion());
     }
 
     /**
@@ -238,22 +237,62 @@ public class ServicioPartidaShootTest {
         Dron dronMisil = jug1.getDrones().get(0);
         Dron dronBomba = jug2.getDrones().get(0);
 
-        // Ubicar el dron bomba adyacente al misil
-        int xMisil = dronMisil.getPosicion().getX();
-        int yMisil = dronMisil.getPosicion().getY();
-        dronBomba.getPosicion().setX(xMisil);
-        dronBomba.getPosicion().setY(yMisil + 1);
+        // Ubicar el misil junto al dron bomba para asegurar objetivo enemigo válido
+        int xBomba = dronBomba.getPosicion().getX();
+        int yBomba = dronBomba.getPosicion().getY();
+        int xMisil = xBomba + 1;
+        if (xMisil > Reglas.TABLERO_X_MAX) {
+            xMisil = xBomba - 1;
+        }
+        dronMisil.getPosicion().setX(xMisil);
+        dronMisil.getPosicion().setY(yBomba);
 
         jug1.setDronSeleccionado(dronMisil.getId());
 
         // Misil a Bomba = destrucción inmediata
-        ServicioPartida.ShootResponse resp = servicio.shoot2(jug1.getId(), yMisil + 1, xMisil);
+        ServicioPartida.ShootResponse resp = servicio.shoot2(jug1.getId(), yBomba, xBomba);
 
         assertTrue(resp.ok);
         assertEquals("HIT", resp.resultado);
         assertEquals("DRON", resp.objetivo);
         assertEquals(0, resp.vidaObjetivo); // Muerto instantáneamente
         assertFalse(dronBomba.estaVivo());
+
+        ServicioPartida.BoardResponse boardJugador2 = servicio.obtenerTablero(jug2.getId());
+        boolean dronAunVisible = boardJugador2.drones.stream().anyMatch(d -> d.id.equals(dronBomba.getId()));
+        assertFalse(dronAunVisible);
+    }
+
+    @Test
+    void testShootAObjetivoDestruidoDebeFallar() {
+        Partida partida = dao.loadActiva();
+        Jugador jug1 = partida.getJugador1(); // NAVAL
+        Jugador jug2 = partida.getJugador2(); // AEREO
+
+        partida.setTurnoDe(Equipo.NAVAL);
+
+        Dron dronMisil = jug1.getDrones().get(0);
+        Dron dronBomba = jug2.getDrones().get(0);
+
+        int xBomba = dronBomba.getPosicion().getX();
+        int yBomba = dronBomba.getPosicion().getY();
+        int xMisil = xBomba + 1;
+        if (xMisil > Reglas.TABLERO_X_MAX) {
+            xMisil = xBomba - 1;
+        }
+        dronMisil.getPosicion().setX(xMisil);
+        dronMisil.getPosicion().setY(yBomba);
+
+        jug1.setDronSeleccionado(dronMisil.getId());
+
+        ServicioPartida.ShootResponse resp1 = servicio.shoot2(jug1.getId(), yBomba, xBomba);
+        assertTrue(resp1.ok);
+        assertFalse(dronBomba.estaVivo());
+
+        jug1.setAccionTurno(Jugador.AccionTurno.NINGUNA);
+        ServicioPartida.ShootResponse resp2 = servicio.shoot2(jug1.getId(), yBomba, xBomba);
+        assertFalse(resp2.ok);
+        assertEquals("OBJETIVO_DESTRUIDO", resp2.estado);
     }
 
     /**
@@ -296,33 +335,53 @@ public class ServicioPartidaShootTest {
     }
 
     /**
-     * Test 9: Una acción por turno: después de disparar, no puede mover
+     * Test 9: Se puede disparar y luego mover en el mismo turno,
+     * pero no se puede volver a disparar en ese turno.
      */
     @Test
-    void testUnaAccionPorTurno() {
+    void testDispararLuegoMoverYNoDispararDosVeces() {
         Partida partida = dao.loadActiva();
         Jugador jug1 = partida.getJugador1();
+        Jugador jug2 = partida.getJugador2();
 
         partida.setTurnoDe(Equipo.NAVAL);
 
         Dron dron1 = jug1.getDrones().get(0);
         jug1.setDronSeleccionado(dron1.getId());
 
-        // Primer disparo a celda vacía
+        // Primer disparo válido a objetivo enemigo
         int xOrigen = dron1.getPosicion().getX();
         int yOrigen = dron1.getPosicion().getY();
-        
-        ServicioPartida.ShootResponse resp1 = servicio.shoot2(jug1.getId(), yOrigen + 1, xOrigen + 1);
+
+        Dron dronEnemigo = jug2.getDrones().get(0);
+        int xObjetivo = dronEnemigo.getPosicion().getX();
+        int yObjetivo = dronEnemigo.getPosicion().getY();
+        int xShooter = xObjetivo + 1;
+        if (xShooter > Reglas.TABLERO_X_MAX) {
+            xShooter = xObjetivo - 1;
+        }
+        dron1.getPosicion().setX(xShooter);
+        dron1.getPosicion().setY(yObjetivo);
+
+        ServicioPartida.ShootResponse resp1 = servicio.shoot2(jug1.getId(), yObjetivo, xObjetivo);
         assertTrue(resp1.ok);
 
         // Verificar que accionTurno fue marcado como DISPARO
         assertEquals(Jugador.AccionTurno.DISPARO, jug1.getAccionTurno());
 
-        // Intentar mover (debe fallar porque ya disparó)
-        jug1.setDronSeleccionado(dron1.getId()); // Volver a seleccionar (limpieza de selección al terminar turno)
-        ServicioPartida.TemplateResponse respMove = servicio.moverDron(jug1.getId(), yOrigen + 1, xOrigen + 1);
+        // Intentar mover después de disparar (debe permitirse)
+        ServicioPartida.AvailableMovesResponse moves = servicio.obtenerMovimientosDisponibles(jug1.getId());
+        assertTrue(moves.ok);
+        assertFalse(moves.celdas.isEmpty());
+        int filaMove = moves.celdas.get(0).y;
+        int colMove = moves.celdas.get(0).x;
+        ServicioPartida.TemplateResponse respMove = servicio.moverDron(jug1.getId(), filaMove, colMove);
+        assertTrue(respMove.ok);
+        assertEquals("OK", respMove.estado);
 
-        assertFalse(respMove.ok);
-        assertEquals("ACCION_YA_REALIZADA", respMove.estado);
+        // Intentar disparar nuevamente en el mismo turno (debe fallar)
+        ServicioPartida.ShootResponse resp2 = servicio.shoot2(jug1.getId(), filaMove, colMove);
+        assertFalse(resp2.ok);
+        assertEquals("YA_DISPARO_EN_ESTE_TURNO", resp2.estado);
     }
 }

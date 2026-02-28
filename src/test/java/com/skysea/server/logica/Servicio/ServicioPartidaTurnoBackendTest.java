@@ -65,4 +65,17 @@ public class ServicioPartidaTurnoBackendTest {
         assertTrue(estadoJ2.esMiTurno);
         assertTrue(estadoJ2.segundosRestantesTurno > 0);
     }
+
+    @Test
+    void terminarTurnoSinAccionDebeEstarPermitido() {
+        Partida partida = dao.loadActiva();
+        partida.setTurnoDe(Equipo.NAVAL);
+        partida.setNumeroTurno(3);
+        dao.save(partida);
+
+        Partida actualizada = servicio.terminarTurno(j1.playerId);
+
+        assertEquals(4, actualizada.getNumeroTurno());
+        assertEquals(Equipo.AEREO, actualizada.getTurnoDe());
+    }
 }

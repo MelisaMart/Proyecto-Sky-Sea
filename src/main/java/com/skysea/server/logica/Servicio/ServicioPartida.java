@@ -282,7 +282,7 @@ public class ServicioPartida {
             return new TemplateResponse(false, "NO_ES_TU_TURNO", null, null);
         }
 
-        if (jugador.getAccionTurno() != Jugador.AccionTurno.NINGUNA) {
+        if (jugador.yaMovioEsteTurno()) {
             return new TemplateResponse(false, "ACCION_YA_REALIZADA", null, null);
         }
 
@@ -381,7 +381,7 @@ public class ServicioPartida {
             return new AvailableMovesResponse(false, "NO_ES_TU_TURNO", List.of());
         }
 
-        if (jugador.getAccionTurno() != Jugador.AccionTurno.NINGUNA) {
+        if (jugador.yaMovioEsteTurno()) {
             return new AvailableMovesResponse(false, "ACCION_YA_REALIZADA", List.of());
         }
 
@@ -433,6 +433,9 @@ public class ServicioPartida {
         }
 
         for (Dron d : jugador.getDrones()) {
+            if (!d.estaVivo()) {
+                continue;
+            }
             drones.add(new DronView(
                     d.getId(),
                     jugador.getEquipo().name(),
@@ -441,6 +444,9 @@ public class ServicioPartida {
                     d.getPosicion().getY(),
                     d.getVida(),
                     d.getMunicion(),
+                    d.getMunicion(),
+                    d.getTipoProyectil().name(),
+                    d.getVida(),
                     !d.estaVivo()
             ));
         }
@@ -470,6 +476,9 @@ public class ServicioPartida {
         }
 
         for (Dron d : enemigo.getDrones()) {
+            if (!d.estaVivo()) {
+                continue;
+            }
             if (!celdasVisibles.contains(celdaKey(d.getPosicion().getX(), d.getPosicion().getY()))) {
                 continue;
             }
@@ -482,6 +491,9 @@ public class ServicioPartida {
                     d.getPosicion().getY(),
                     d.getVida(),
                     d.getMunicion(),
+                    d.getMunicion(),
+                    d.getTipoProyectil().name(),
+                    d.getVida(),
                     !d.estaVivo()
             ));
         }
@@ -684,9 +696,13 @@ public class ServicioPartida {
         public final int y;
         public final int vida;
         public final int municion;
+        public final int ammoRemaining;
+        public final String proyectil;
+        public final int hitsRemaining;
         public final boolean destruido;
 
-        public DronView(String id, String equipo, String tipo, int x, int y, int vida, int municion, boolean destruido) {
+        public DronView(String id, String equipo, String tipo, int x, int y, int vida, int municion,
+                        int ammoRemaining, String proyectil, int hitsRemaining, boolean destruido) {
             this.id = id;
             this.equipo = equipo;
             this.tipo = tipo;
@@ -694,6 +710,9 @@ public class ServicioPartida {
             this.y = y;
             this.vida = vida;
             this.municion = municion;
+            this.ammoRemaining = ammoRemaining;
+            this.proyectil = proyectil;
+            this.hitsRemaining = hitsRemaining;
             this.destruido = destruido;
         }
     }
@@ -738,15 +757,17 @@ public class ServicioPartida {
      * Valida condiciones previas, descuenta munición, aplica daño según tipo de proyectil y objetivo,
      * y marca la acción de turno como "DISPARO".
      *
-     * Reglas:
-     * - Una acción por turno (mover o disparar).
+    * Reglas:
+    * - Puede disparar como máximo una vez por turno.
      * - BOMBA (dron AEREO): rango adyacente (1), daña drones NAVAL y porta NAVAL.
      * - MISIL (dron NAVAL): por ahora rango 1 fijo.
      * - MISIL vs DRON AEREO: destrucción inmediata.
      * - BOMBA vs DRON NAVAL: resta 1 vida (muere en 2 impactos).
      * - MISIL vs PORTA AEREO: resta 1 impacto (destruida en 6).
      * - BOMBA vs PORTA NAVAL: resta 1 impacto (destruida en 3).
-     * - Arma no compatible contra porta: MISS (sin daño).
+    * - Arma no compatible contra porta: MISS (sin daño).
+    * - No se permite disparar a celda vacía ni a unidad propia.
+    * - No se permite disparar a una unidad ya destruida.
      */
     public synchronized ShootResponse shoot2(String playerId, int filaDestino, int colDestino) {
         Partida partida = dao.loadActiva();
@@ -766,10 +787,6 @@ public class ServicioPartida {
         // Validación 3: es su turno
         if (!partida.esTurnoDe(playerId)) {
             return new ShootResponse(false, "NO_ES_TU_TURNO", null, null, null, null, null);
-        }
-
-        if (jugador.getAccionTurno() != Jugador.AccionTurno.NINGUNA) {
-            return new ShootResponse(false, "ACCION_YA_REALIZADA", null, null, null, null, null);
         }
 
         if (jugador.yaDisparoEsteTurno()) {
@@ -809,33 +826,59 @@ public class ServicioPartida {
             return new ShootResponse(false, "FUERA_DE_TABLERO", null, null, null, null, null);
         }
 
-        // Consumir munición (antes de evaluar impacto)
-        dronDispara.consumirMunicion();
-        TipoProyectil proyectil = dronDispara.getTipoProyectil();
-
-        // Buscar objetivo en la celda de destino
         Jugador jugadorEnemigo = partida.getJugador1().getId().equals(jugador.getId()) ? partida.getJugador2() : partida.getJugador1();
 
-        // Primero verificar si hay un dron en esa posición
-        for (Dron dronEnemigo : jugadorEnemigo.getDrones()) {
-            if (dronEnemigo.getPosicion().getX() == colDestino && dronEnemigo.getPosicion().getY() == filaDestino && dronEnemigo.estaVivo()) {
-                // HIT en dron
-                dronEnemigo.recibirImpacto(proyectil);
-                String resultado = "HIT";
-                Integer vidaRestante = dronEnemigo.estaVivo() ? dronEnemigo.getVida() : 0;
-                jugador.marcarDisparoRealizado();                       
-                dao.save(partida);
-                return new ShootResponse(true, "OK", resultado, "DRON", dronDispara.getMunicion(), vidaRestante, null);
+        if (jugador.getPorta() != null && jugador.getPorta().ocupa(new Posicion(colDestino, filaDestino))) {
+            return new ShootResponse(false, "OBJETIVO_PROPIO", null, null, null, null, null);
+        }
+        for (Dron dronPropio : jugador.getDrones()) {
+            if (dronPropio.getPosicion().getX() == colDestino && dronPropio.getPosicion().getY() == filaDestino && dronPropio.estaVivo()) {
+                return new ShootResponse(false, "OBJETIVO_PROPIO", null, null, null, null, null);
             }
         }
 
-        // Luego verificar si hay una porta en esa posición
+        Dron dronObjetivoVivo = null;
+        boolean objetivoDestruidoEnCelda = false;
+        for (Dron dronEnemigo : jugadorEnemigo.getDrones()) {
+            if (dronEnemigo.getPosicion().getX() == colDestino && dronEnemigo.getPosicion().getY() == filaDestino) {
+                if (dronEnemigo.estaVivo()) {
+                    dronObjetivoVivo = dronEnemigo;
+                    break;
+                }
+                objetivoDestruidoEnCelda = true;
+            }
+        }
+
+        Porta portaObjetivo = null;
         if (jugadorEnemigo.getPorta() != null && jugadorEnemigo.getPorta().ocupa(new Posicion(colDestino, filaDestino))) {
-            Porta porta = jugadorEnemigo.getPorta();
-            boolean impactoRecibido = porta.recibirImpacto(proyectil);
+            portaObjetivo = jugadorEnemigo.getPorta();
+        }
+
+        if (dronObjetivoVivo == null && portaObjetivo == null) {
+            if (objetivoDestruidoEnCelda) {
+                return new ShootResponse(false, "OBJETIVO_DESTRUIDO", null, null, null, null, null);
+            }
+            return new ShootResponse(false, "NO_HAY_OBJETIVO_ENEMIGO", null, null, null, null, null);
+        }
+
+        // Consumir munición una vez validadas todas las precondiciones de objetivo
+        dronDispara.consumirMunicion();
+        TipoProyectil proyectil = dronDispara.getTipoProyectil();
+
+        if (dronObjetivoVivo != null) {
+            dronObjetivoVivo.recibirImpacto(proyectil);
+            String resultado = "HIT";
+            Integer vidaRestante = dronObjetivoVivo.estaVivo() ? dronObjetivoVivo.getVida() : 0;
+            jugador.marcarDisparoRealizado();
+            dao.save(partida);
+            return new ShootResponse(true, "OK", resultado, "DRON", dronDispara.getMunicion(), vidaRestante, null);
+        }
+
+        if (portaObjetivo != null) {
+            boolean impactoRecibido = portaObjetivo.recibirImpacto(proyectil);
             if (impactoRecibido) {
                 String resultado = "HIT";
-                Integer impactosRestantes = porta.getImpactosRestantes();
+                Integer impactosRestantes = portaObjetivo.getImpactosRestantes();
                 jugador.marcarDisparoRealizado();
                 dao.save(partida);
                 return new ShootResponse(true, "OK", resultado, "PORTA", dronDispara.getMunicion(), null, impactosRestantes);
@@ -848,11 +891,7 @@ public class ServicioPartida {
             }
         }
 
-        // MISS: no hay nada en la celda de destino
-        String resultado = "MISS";
-        jugador.marcarDisparoRealizado();
-        dao.save(partida);
-        return new ShootResponse(true, "OK", resultado, "NADA", dronDispara.getMunicion(), null, null);
+        return new ShootResponse(false, "NO_HAY_OBJETIVO_ENEMIGO", null, null, null, null, null);
     }
 
     public synchronized AvailableShotsResponse obtenerDisparosDisponibles(String playerId) {
@@ -869,10 +908,6 @@ public class ServicioPartida {
 
         if (!partida.esTurnoDe(playerId)) {
             return new AvailableShotsResponse(false, "NO_ES_TU_TURNO", List.of());
-        }
-
-        if (jugador.getAccionTurno() != Jugador.AccionTurno.NINGUNA) {
-            return new AvailableShotsResponse(false, "ACCION_YA_REALIZADA", List.of());
         }
 
         String dronSeleccionadoId = jugador.getDronSeleccionado();
@@ -915,10 +950,6 @@ public class ServicioPartida {
     Jugador j = partida.buscarJugadorPorId(playerId);
     if (j == null) {
         throw new IllegalArgumentException("PLAYER_NO_ENCONTRADO");
-    }
-
-    if (j.getAccionTurno() == Jugador.AccionTurno.NINGUNA) {
-        throw new IllegalStateException("DEBE_REALIZAR_ACCION");
     }
 
     // Validación: es su turno
