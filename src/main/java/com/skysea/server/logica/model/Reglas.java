@@ -36,7 +36,7 @@ public final class Reglas {
     public static final int VISION_MISIL = 3;
     public static final int VISION_BOMBA = VISION_MISIL * 2;
     public static final int RANGO_ATAQUE_BOMBA = 1;
-    public static final int RANGO_ATAQUE_MISIL = VISION_MISIL;
+    public static final int RANGO_ATAQUE_MISIL = 2;
 
     // Vida por tipo de dron
     public static final int VIDA_DRON_AEREO = 1;
