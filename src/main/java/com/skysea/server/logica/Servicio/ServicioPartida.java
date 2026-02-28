@@ -31,6 +31,7 @@ public class ServicioPartida {
 
     public synchronized JoinResponse join(String nombre, String equipoDeseado) {
         Partida partida = dao.loadActiva();
+        EstadoPartida estadoAnterior = partida.getEstado();
 
         String nombreLimpio = nombre == null ? "" : nombre.trim();
         if (nombreLimpio.isEmpty()) {
@@ -113,12 +114,46 @@ public class ServicioPartida {
                 ? EstadoPartida.EN_JUEGO
                 : EstadoPartida.ESPERANDO_RIVAL);
 
+        if (estadoAnterior != EstadoPartida.EN_JUEGO && partida.getEstado() == EstadoPartida.EN_JUEGO) {
+            partida.setNumeroTurno(1);
+            partida.setTurnoDe(Equipo.NAVAL);
+            partida.reiniciarTemporizadorTurno();
+        }
+
         dao.save(partida);
 
         int numeroJugador = partida.numeroJugadorPorId(nuevo.getId());
 
         return new JoinResponse(partida.getIdPartida(), nuevo.getId(), nuevo.getNombre(),
             partida.getEstado().name(), nuevo.getEquipo().name(), numeroJugador);
+    }
+
+    public synchronized TurnoEstadoResponse obtenerEstadoTurno(String playerId) {
+        Partida partida = dao.loadActiva();
+        aplicarTimeoutTurnoSiCorresponde(partida);
+
+        Jugador jugador = partida.buscarJugadorPorId(playerId);
+        if (jugador == null) {
+            throw new IllegalArgumentException("PLAYER_NO_ENCONTRADO");
+        }
+
+        boolean enJuego = partida.getEstado() == EstadoPartida.EN_JUEGO;
+        boolean esMiTurno = enJuego && partida.esTurnoDe(playerId);
+        int segundosRestantes = enJuego
+                ? partida.segundosRestantesTurno(System.currentTimeMillis())
+                : 0;
+
+        return new TurnoEstadoResponse(
+                partida.getIdPartida(),
+                partida.getEstado().name(),
+                partida.getTurnoDe().name(),
+                partida.getNumeroTurno(),
+                jugador.getEquipo().name(),
+                partida.numeroJugadorPorId(playerId),
+                esMiTurno,
+                segundosRestantes,
+                Partida.DURACION_TURNO_SEGUNDOS
+        );
     }
 
     // Clase interna simple para que el Service no dependa del DTO de presentación
@@ -188,6 +223,7 @@ public class ServicioPartida {
      */
     public synchronized TemplateResponse selectDrone(String playerId, String dronId) {
         Partida partida = dao.loadActiva();
+        aplicarTimeoutTurnoSiCorresponde(partida);
 
         // regla 1: estado EN_JUEGO
         if (partida.getEstado() != EstadoPartida.EN_JUEGO) {
@@ -231,6 +267,7 @@ public class ServicioPartida {
      */
     public synchronized TemplateResponse moverDron(String playerId, int filaDestino, int colDestino) {
         Partida partida = dao.loadActiva();
+        aplicarTimeoutTurnoSiCorresponde(partida);
 
         if (partida.getEstado() != EstadoPartida.EN_JUEGO) {
             return new TemplateResponse(false, "PARTIDA_NO_EN_JUEGO", null, null);
@@ -295,6 +332,7 @@ public class ServicioPartida {
 
     public synchronized BoardResponse obtenerTablero(String playerId) {
         Partida partida = dao.loadActiva();
+        aplicarTimeoutTurnoSiCorresponde(partida);
         Jugador jugador = partida.buscarJugadorPorId(playerId);
         if (jugador == null) {
             throw new IllegalArgumentException("PLAYER_NO_ENCONTRADO");
@@ -329,6 +367,7 @@ public class ServicioPartida {
 
     public synchronized AvailableMovesResponse obtenerMovimientosDisponibles(String playerId) {
         Partida partida = dao.loadActiva();
+        aplicarTimeoutTurnoSiCorresponde(partida);
         if (partida.getEstado() != EstadoPartida.EN_JUEGO) {
             return new AvailableMovesResponse(false, "PARTIDA_NO_EN_JUEGO", List.of());
         }
@@ -702,7 +741,7 @@ public class ServicioPartida {
      * Reglas:
      * - Una acción por turno (mover o disparar).
      * - BOMBA (dron AEREO): rango adyacente (1), daña drones NAVAL y porta NAVAL.
-     * - MISIL (dron NAVAL): por ahora rango 1 fijo (TODO: visibilidad real).
+     * - MISIL (dron NAVAL): por ahora rango 1 fijo.
      * - MISIL vs DRON AEREO: destrucción inmediata.
      * - BOMBA vs DRON NAVAL: resta 1 vida (muere en 2 impactos).
      * - MISIL vs PORTA AEREO: resta 1 impacto (destruida en 6).
@@ -711,6 +750,7 @@ public class ServicioPartida {
      */
     public synchronized ShootResponse shoot2(String playerId, int filaDestino, int colDestino) {
         Partida partida = dao.loadActiva();
+        aplicarTimeoutTurnoSiCorresponde(partida);
 
         // Validación 1: estado EN_JUEGO
         if (partida.getEstado() != EstadoPartida.EN_JUEGO) {
@@ -817,6 +857,7 @@ public class ServicioPartida {
 
     public synchronized AvailableShotsResponse obtenerDisparosDisponibles(String playerId) {
         Partida partida = dao.loadActiva();
+        aplicarTimeoutTurnoSiCorresponde(partida);
         if (partida.getEstado() != EstadoPartida.EN_JUEGO) {
             return new AvailableShotsResponse(false, "PARTIDA_NO_EN_JUEGO", List.of());
         }
@@ -868,6 +909,7 @@ public class ServicioPartida {
 
     public synchronized Partida terminarTurno(String playerId) {
     Partida partida = dao.loadActiva();
+    aplicarTimeoutTurnoSiCorresponde(partida);
 
     // Validación: jugador existe
     Jugador j = partida.buscarJugadorPorId(playerId);
@@ -884,23 +926,85 @@ public class ServicioPartida {
         throw new IllegalStateException("NO_ES_TU_TURNO");
     }
         
-    j.setDronSeleccionado(null);
-    j.setAccionTurno(Jugador.AccionTurno.NINGUNA);
-    j.resetAccionesTurno();
-
-    // Cambiar turno
-    if (partida.getTurnoDe() == Equipo.NAVAL) {
-        partida.setTurnoDe(Equipo.AEREO);
-    } else {
-        partida.setTurnoDe(Equipo.NAVAL);
-    }
-
-    // Aumentar turno
-    partida.setNumeroTurno(partida.getNumeroTurno() + 1);
+    avanzarTurno(partida);
 
     dao.save(partida);
     return partida;
 }
+
+    private void aplicarTimeoutTurnoSiCorresponde(Partida partida) {
+        if (partida.getEstado() != EstadoPartida.EN_JUEGO) {
+            return;
+        }
+
+        int restantes = partida.segundosRestantesTurno(System.currentTimeMillis());
+        if (restantes > 0) {
+            return;
+        }
+
+        avanzarTurno(partida);
+        dao.save(partida);
+    }
+
+    private void avanzarTurno(Partida partida) {
+        Jugador jugadorTurnoActual = jugadorPorEquipo(partida, partida.getTurnoDe());
+        if (jugadorTurnoActual != null) {
+            jugadorTurnoActual.setDronSeleccionado(null);
+            jugadorTurnoActual.setAccionTurno(Jugador.AccionTurno.NINGUNA);
+            jugadorTurnoActual.resetAccionesTurno();
+        }
+
+        if (partida.getTurnoDe() == Equipo.NAVAL) {
+            partida.setTurnoDe(Equipo.AEREO);
+        } else {
+            partida.setTurnoDe(Equipo.NAVAL);
+        }
+
+        partida.setNumeroTurno(partida.getNumeroTurno() + 1);
+        partida.reiniciarTemporizadorTurno();
+    }
+
+    private Jugador jugadorPorEquipo(Partida partida, Equipo equipo) {
+        if (partida.getJugador1() != null && partida.getJugador1().getEquipo() == equipo) {
+            return partida.getJugador1();
+        }
+        if (partida.getJugador2() != null && partida.getJugador2().getEquipo() == equipo) {
+            return partida.getJugador2();
+        }
+        return null;
+    }
+
+    public static class TurnoEstadoResponse {
+        public final String idPartida;
+        public final String estadoPartida;
+        public final String turnoDe;
+        public final int numeroTurno;
+        public final String equipo;
+        public final int numeroJugador;
+        public final boolean esMiTurno;
+        public final int segundosRestantesTurno;
+        public final int duracionTurnoSegundos;
+
+        public TurnoEstadoResponse(String idPartida,
+                                   String estadoPartida,
+                                   String turnoDe,
+                                   int numeroTurno,
+                                   String equipo,
+                                   int numeroJugador,
+                                   boolean esMiTurno,
+                                   int segundosRestantesTurno,
+                                   int duracionTurnoSegundos) {
+            this.idPartida = idPartida;
+            this.estadoPartida = estadoPartida;
+            this.turnoDe = turnoDe;
+            this.numeroTurno = numeroTurno;
+            this.equipo = equipo;
+            this.numeroJugador = numeroJugador;
+            this.esMiTurno = esMiTurno;
+            this.segundosRestantesTurno = segundosRestantesTurno;
+            this.duracionTurnoSegundos = duracionTurnoSegundos;
+        }
+    }
 
 
 }

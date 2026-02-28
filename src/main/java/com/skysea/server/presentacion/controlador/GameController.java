@@ -77,22 +77,24 @@ public class GameController {
 
     @GetMapping("/state2")
     public Object state2(@RequestParam String playerId) {
-        var partida = servicioPartida.getPartidaActiva(); // lo vamos a crear ya
-        var jugador = partida.buscarJugadorPorId(playerId);
-
-        if (jugador == null) {
+        try {
+            var estado = servicioPartida.obtenerEstadoTurno(playerId);
             return java.util.Map.of(
-                    "error", "PLAYER_NO_ENCONTRADO"
+                    "idPartida", estado.idPartida,
+                    "estadoPartida", estado.estadoPartida,
+                    "turnoDe", estado.turnoDe,
+                    "numeroTurno", estado.numeroTurno,
+                    "equipo", estado.equipo,
+                    "numeroJugador", estado.numeroJugador,
+                    "esMiTurno", estado.esMiTurno,
+                    "segundosRestantesTurno", estado.segundosRestantesTurno,
+                    "duracionTurnoSegundos", estado.duracionTurnoSegundos
+            );
+        } catch (Exception e) {
+            return java.util.Map.of(
+                    "error", e.getMessage()
             );
         }
-
-        return java.util.Map.of(
-                "idPartida", partida.getIdPartida(),
-                "estadoPartida", partida.getEstado().name(),
-                "turnoDe", partida.getTurnoDe().name(),
-            "equipo", jugador.getEquipo().name(),
-            "numeroJugador", partida.numeroJugadorPorId(playerId)
-        );
     }
 
     @PostMapping("/template")
@@ -119,12 +121,16 @@ public class GameController {
     @PostMapping("/endTurn2")
     public Object endTurn2(@RequestParam String playerId) {
         try {
-            var partida = servicioPartida.terminarTurno(playerId);
+            servicioPartida.terminarTurno(playerId);
+            var estado = servicioPartida.obtenerEstadoTurno(playerId);
             return java.util.Map.of(
-                    "idPartida", partida.getIdPartida(),
-                    "estadoPartida", partida.getEstado().name(),
-                    "turnoDe", partida.getTurnoDe().name(),
-                    "numeroTurno", partida.getNumeroTurno()
+                    "idPartida", estado.idPartida,
+                    "estadoPartida", estado.estadoPartida,
+                    "turnoDe", estado.turnoDe,
+                    "numeroTurno", estado.numeroTurno,
+                    "esMiTurno", estado.esMiTurno,
+                    "segundosRestantesTurno", estado.segundosRestantesTurno,
+                    "duracionTurnoSegundos", estado.duracionTurnoSegundos
             );
         } catch (Exception e) {
             return java.util.Map.of(

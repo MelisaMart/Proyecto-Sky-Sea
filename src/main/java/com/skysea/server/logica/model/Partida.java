@@ -5,6 +5,8 @@ import java.util.UUID;
 
 public class Partida {
 
+    public static final int DURACION_TURNO_SEGUNDOS = 30;
+
     private final String idPartida;
     private EstadoPartida estado;
 
@@ -14,12 +16,14 @@ public class Partida {
 
     private int numeroTurno;
     private Equipo turnoDe;
+    private long turnoInicioEpochMs;
 
     public Partida() {
         this.idPartida = UUID.randomUUID().toString();
         this.estado = EstadoPartida.ESPERANDO_RIVAL;
         this.numeroTurno = 1;
         this.turnoDe = Equipo.NAVAL; // regla del doc: naval empieza
+        this.turnoInicioEpochMs = System.currentTimeMillis();
     }
 
     // ----------------- Helpers de cupos -----------------
@@ -134,5 +138,26 @@ public class Partida {
 
     public void setTurnoDe(Equipo turnoDe) {
         this.turnoDe = Objects.requireNonNull(turnoDe);
+    }
+
+    public long getTurnoInicioEpochMs() {
+        return turnoInicioEpochMs;
+    }
+
+    public void setTurnoInicioEpochMs(long turnoInicioEpochMs) {
+        this.turnoInicioEpochMs = turnoInicioEpochMs;
+    }
+
+    public void reiniciarTemporizadorTurno() {
+        this.turnoInicioEpochMs = System.currentTimeMillis();
+    }
+
+    public int segundosRestantesTurno(long ahoraEpochMs) {
+        long transcurridosMs = Math.max(0L, ahoraEpochMs - this.turnoInicioEpochMs);
+        long restantesMs = (long) DURACION_TURNO_SEGUNDOS * 1000L - transcurridosMs;
+        if (restantesMs <= 0L) {
+            return 0;
+        }
+        return (int) ((restantesMs + 999L) / 1000L);
     }
 }

@@ -138,9 +138,8 @@
     const hudIconPortaEnemigo = document.getElementById('hudIconPortaEnemigo');
     let numeroJugadorActual = Number(getSessionValue('numeroJugador'));
     const TIEMPO_TURNO_SEGUNDOS = 30;
-    let temporizadorTurnoId = null;
-    let segundosRestantesTurno = TIEMPO_TURNO_SEGUNDOS;
-    let claveTurnoActual = null;
+    let duracionTurnoSegundos = TIEMPO_TURNO_SEGUNDOS;
+    let segundosRestantesTurno = 0;
     let autoPasandoTurno = false;
     let recuperandoSesion = false;
     let alertaSesionMostrada = false;
@@ -223,22 +222,27 @@
       indicadorTurno.textContent = '';
     }
 
-    function actualizarCronometroTurnoVisual() {
+    function actualizarCronometroTurnoVisual(mostrar) {
       if (!cronometroTurno) return;
-      if (temporizadorTurnoId) {
+      if (mostrar) {
         cronometroTurno.textContent = `${Math.max(segundosRestantesTurno, 0)}s`;
       } else {
         cronometroTurno.textContent = '';
       }
     }
 
-    function detenerCronometroTurno() {
-      if (temporizadorTurnoId) {
-        clearInterval(temporizadorTurnoId);
-        temporizadorTurnoId = null;
+    function sincronizarCronometroTurno(esMiTurno, segundosRestantes, duracionSegundos) {
+      if (Number.isFinite(duracionSegundos) && duracionSegundos > 0) {
+        duracionTurnoSegundos = duracionSegundos;
       }
-      segundosRestantesTurno = TIEMPO_TURNO_SEGUNDOS;
-      actualizarCronometroTurnoVisual();
+
+      if (Number.isFinite(segundosRestantes)) {
+        segundosRestantesTurno = Math.max(0, segundosRestantes);
+      } else {
+        segundosRestantesTurno = duracionTurnoSegundos;
+      }
+
+      actualizarCronometroTurnoVisual(esMiTurno === true);
     }
 
     // entrega: función genérica para terminar el turno. Se puede invocar
@@ -262,22 +266,6 @@
       } finally {
         autoPasandoTurno = false;
       }
-    }
-
-    function iniciarCronometroTurno() {
-      detenerCronometroTurno();
-      segundosRestantesTurno = TIEMPO_TURNO_SEGUNDOS;
-      actualizarCronometroTurnoVisual();
-
-      temporizadorTurnoId = setInterval(async () => {
-        segundosRestantesTurno -= 1;
-        actualizarCronometroTurnoVisual();
-
-        if (segundosRestantesTurno <= 0) {
-          detenerCronometroTurno();
-          await pasarTurno();
-        }
-      }, 1000);
     }
 
     const numeroGuardado = Number(getSessionValue('numeroJugador'));
@@ -623,44 +611,33 @@
           setSessionValue('equipoAsignado', state.equipo);
         }
 
-        if (state.numeroJugador === 1 && state.estadoPartida === 'EN_JUEGO' && !jugador2IniciadoMostrado) {
-          mostrarJugador2Iniciado();
-        }
-
         if (state.numeroJugador === 1 || state.numeroJugador === 2) {
           numeroJugadorActual = state.numeroJugador;
           setSessionValue('numeroJugador', String(state.numeroJugador));
           actualizarIndicadorJugador(state.numeroJugador);
 
           if (state.turnoDe && state.equipo && state.estadoPartida === 'EN_JUEGO') {
-            const esMiTurno = state.turnoDe === state.equipo;
-            const nuevaClaveTurno = `${state.numeroTurno || ''}-${state.turnoDe || ''}`;
+            const esMiTurno = state.esMiTurno === true || state.turnoDe === state.equipo;
             actualizarIndicadorTurno(esMiTurno);
+            sincronizarCronometroTurno(
+              esMiTurno,
+              Number(state.segundosRestantesTurno),
+              Number(state.duracionTurnoSegundos)
+            );
 
             // controlar habilitación de botón mover
             if (btnMover) {
               if (!esMiTurno) {
                 btnMover.disabled = true;
-              } else if (claveTurnoActual !== nuevaClaveTurno) {
-                // acabo de recibir un nuevo turno propio
+              } else {
                 btnMover.disabled = !selectedDron;
               }
             }
-
-            if (esMiTurno) {
-              if (!temporizadorTurnoId || claveTurnoActual !== nuevaClaveTurno) {
-                iniciarCronometroTurno();
-              }
-            } else {
-              detenerCronometroTurno();
-            }
-
-            claveTurnoActual = nuevaClaveTurno;
           } else {
-            detenerCronometroTurno();
+            sincronizarCronometroTurno(false, 0, Number(state.duracionTurnoSegundos));
           }
         } else {
-          detenerCronometroTurno();
+          sincronizarCronometroTurno(false, 0, Number(state.duracionTurnoSegundos));
         }
 
         try {
@@ -670,7 +647,7 @@
           console.warn('No se pudo actualizar HUD inferior:', errBoard.message);
         }
       } catch (error) {
-        detenerCronometroTurno();
+        sincronizarCronometroTurno(false, 0, duracionTurnoSegundos);
         if (String(error.message || '').includes('PLAYER_NO_ENCONTRADO')) {
           await intentarRecuperarSesion();
           return;
@@ -1066,7 +1043,7 @@
     })();
 
     refreshPartidaState();
-    setInterval(refreshPartidaState, 2000);
+    setInterval(refreshPartidaState, 1000);
   </script>
 </body>
 </html>

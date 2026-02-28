@@ -66,7 +66,7 @@ public class ServicioPartidaShootTest {
         ServicioPartida.ShootResponse resp = servicio.shoot2(jug1.getId(), 5, 5);
 
         assertFalse(resp.ok);
-        assertEquals("ERROR", resp.estado);
+        assertEquals("NO_ES_TU_TURNO", resp.estado);
         assertNull(resp.resultado);
     }
 
@@ -87,7 +87,7 @@ public class ServicioPartidaShootTest {
         ServicioPartida.ShootResponse resp = servicio.shoot2(jug1.getId(), 5, 5);
 
         assertFalse(resp.ok);
-        assertEquals("ERROR", resp.estado);
+        assertEquals("SIN_DRON_SELECCIONADO", resp.estado);
         assertNull(resp.resultado);
     }
 
@@ -109,15 +109,29 @@ public class ServicioPartidaShootTest {
 
         int xOrigen = dron1.getPosicion().getX();
         int yOrigen = dron1.getPosicion().getY();
+        int deltaFueraRango = dron1.getRangoAtaque() + 1;
 
-        // Intentar disparar a más de 1 celda de distancia
-        int filaDestino = yOrigen + 3;
-        int colDestino = xOrigen + 3;
+        // Intentar disparar fuera del rango, pero dentro del tablero
+        int filaDestino = yOrigen;
+        int colDestino = xOrigen + deltaFueraRango;
+        if (colDestino > Reglas.TABLERO_X_MAX) {
+            colDestino = xOrigen - deltaFueraRango;
+        }
+        if (colDestino < Reglas.TABLERO_X_MIN) {
+            colDestino = xOrigen;
+            filaDestino = yOrigen + deltaFueraRango;
+            if (filaDestino > Reglas.TABLERO_Y_MAX) {
+                filaDestino = yOrigen - deltaFueraRango;
+            }
+        }
+
+        assertTrue(colDestino >= Reglas.TABLERO_X_MIN && colDestino <= Reglas.TABLERO_X_MAX);
+        assertTrue(filaDestino >= Reglas.TABLERO_Y_MIN && filaDestino <= Reglas.TABLERO_Y_MAX);
 
         ServicioPartida.ShootResponse resp = servicio.shoot2(jug1.getId(), filaDestino, colDestino);
 
         assertFalse(resp.ok);
-        assertEquals("ERROR", resp.estado);
+        assertEquals("FUERA_DE_RANGO", resp.estado);
         assertNull(resp.resultado);
     }
 
@@ -144,7 +158,7 @@ public class ServicioPartidaShootTest {
         ServicioPartida.ShootResponse resp = servicio.shoot2(jug1.getId(), yOrigen + 1, xOrigen + 1);
 
         assertFalse(resp.ok);
-        assertEquals("ERROR", resp.estado);
+        assertEquals("SIN_MUNICION", resp.estado);
     }
 
     /**
