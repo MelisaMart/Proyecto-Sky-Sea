@@ -573,6 +573,35 @@ main {
     object-fit: contain;
     object-position: center;
     display: block;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.7));
+}
+
+.elemento-formacion.dron-ammo-verde {
+    filter:
+        contrast(1.35)
+        saturate(2.2)
+        brightness(1.3)
+        drop-shadow(0 0 1px rgba(0, 0, 0, 0.99))
+        drop-shadow(0 0 3px rgba(0, 0, 0, 0.99))
+        drop-shadow(0 0 10px rgba(136, 255, 120, 0.99))
+}
+
+.elemento-formacion.dron-ammo-amarillo {
+    filter:
+        sepia(1)
+        hue-rotate(8deg)
+        saturate(18)
+        brightness(1.28)
+        contrast(1.2);
+}
+
+.elemento-formacion.dron-ammo-rojo {
+    filter:
+        sepia(1)
+        hue-rotate(-38deg)
+        saturate(22)
+        brightness(1.16)
+        contrast(1.3);
 }
 
 /* Celda ocupada por un puerto/base */
@@ -583,6 +612,18 @@ main {
 /* Celda ocupada por un dron */
 .celda.ocupada-dron {
     background-color: rgba(4, 117, 34, 0.836);
+}
+
+.celda.ocupada-dron.celda-ammo-verde {
+    background-color: rgba(4, 117, 34, 0.50);
+}
+
+.celda.ocupada-dron.celda-ammo-amarillo {
+    background-color: rgba(255, 208, 0, 0.40);
+}
+
+.celda.ocupada-dron.celda-ammo-rojo {
+    background-color: rgba(232, 15, 15, 0.40);
 }
 
 /* Celda cuyo dron ha sido seleccionado por el jugador */

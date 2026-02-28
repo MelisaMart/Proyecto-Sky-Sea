@@ -441,7 +441,9 @@ public class ServicioPartida {
                     d.getMunicion(),
                     d.getTipoProyectil().name(),
                     d.getVida(),
-                    !d.estaVivo()
+                    !d.estaVivo(),
+                    d.getTipoProyectil().name(),
+                    d.estaVivo()
             ));
         }
     }
@@ -488,7 +490,9 @@ public class ServicioPartida {
                     d.getMunicion(),
                     d.getTipoProyectil().name(),
                     d.getVida(),
-                    !d.estaVivo()
+                    !d.estaVivo(),
+                    d.getTipoProyectil().name(),
+                    d.estaVivo()
             ));
         }
     }
@@ -686,6 +690,7 @@ public class ServicioPartida {
         public final String id;
         public final String equipo;
         public final String tipo;
+        public final String type;
         public final int x;
         public final int y;
         public final int vida;
@@ -693,13 +698,16 @@ public class ServicioPartida {
         public final int ammoRemaining;
         public final String proyectil;
         public final int hitsRemaining;
+        public final boolean alive;
         public final boolean destruido;
 
         public DronView(String id, String equipo, String tipo, int x, int y, int vida, int municion,
-                        int ammoRemaining, String proyectil, int hitsRemaining, boolean destruido) {
+                        int ammoRemaining, String proyectil, int hitsRemaining, boolean destruido,
+                        String type, boolean alive) {
             this.id = id;
             this.equipo = equipo;
             this.tipo = tipo;
+            this.type = type;
             this.x = x;
             this.y = y;
             this.vida = vida;
@@ -707,6 +715,7 @@ public class ServicioPartida {
             this.ammoRemaining = ammoRemaining;
             this.proyectil = proyectil;
             this.hitsRemaining = hitsRemaining;
+            this.alive = alive;
             this.destruido = destruido;
         }
     }
