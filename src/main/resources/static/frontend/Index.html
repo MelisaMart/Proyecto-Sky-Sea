@@ -127,11 +127,97 @@
     </div>
   </div>
 
+  <div id="errorModal" class="modal-overlay error" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal-box error-box">
+      <p class="error-title">ERROR:</p>
+      <p id="errorMessage" class="error-message"></p>
+      <div class="modal-actions">
+        <button id="errorOk" class="game-btn error-ok" type="button">OK</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const API_BASE = (window.location.protocol === 'file:')
       ? 'http://localhost:8080'
       : '';
     const API = `${API_BASE}/api/game`;
+
+    const FRIENDLY_ERROR_BY_CODE = {
+      ACCION_YA_REALIZADA: 'La acción ya fue realizada en este turno.',
+      OCUPADO: 'Ya hay dos jugadores en partida. Esperá a que finalice para ingresar.',
+      NOMBRE_INVALIDO: 'El nombre ingresado no es válido. Usá al menos 3 caracteres sin símbolos.',
+      EQUIPO_INVALIDO: 'El equipo seleccionado no es válido. Elegí Naval o Aéreo.',
+      PLAYER_NO_ENCONTRADO: 'No se encontró tu jugador en la partida actual.',
+      HTTP_404: 'No se encontró el recurso solicitado en el servidor.',
+      HTTP_500: 'El servidor tuvo un problema interno al procesar la acción.',
+      HTTP_503: 'El servidor está temporalmente no disponible. Intentá nuevamente en unos segundos.'
+    };
+
+    function normalizeErrorInput(input) {
+      const text = String(input ?? '').trim();
+      if (!text) return 'Ocurrió un error inesperado. Intentá nuevamente.';
+      return text;
+    }
+
+    function findErrorCode(text) {
+      const matches = text.toUpperCase().match(/[A-Z][A-Z0-9_]{2,}/g);
+      if (!matches) return null;
+      return matches.find((token) => FRIENDLY_ERROR_BY_CODE[token]) ?? null;
+    }
+
+    function toFriendlyErrorMessage(input) {
+      const text = normalizeErrorInput(input);
+      const code = findErrorCode(text);
+      if (code) {
+        const normalized = text.toUpperCase();
+        if (code === 'ACCION_YA_REALIZADA') {
+          if (normalized.includes('NO SE PUEDE MOVER')) return 'No se puede mover: acción ya realizada.';
+          if (normalized.includes('NO SE PUEDE DISPARAR')) return 'No se puede disparar: acción ya realizada.';
+          return 'La acción ya fue realizada en este turno.';
+        }
+        return FRIENDLY_ERROR_BY_CODE[code];
+      }
+
+      const normalized = text.toUpperCase();
+      if (
+        normalized.includes('FAILED TO FETCH')
+        || normalized.includes('NETWORK')
+        || normalized.includes('NO SE PUDO CONECTAR CON EL SERVIDOR')
+      ) {
+        return 'Se cayó el servidor';
+      }
+      if (normalized.includes('RESPUESTA NO VÁLIDA DEL SERVIDOR')) {
+        return 'El servidor devolvió una respuesta inválida. Intentá nuevamente.';
+      }
+
+      return text;
+    }
+
+    function hideError() {
+      const modal = document.getElementById('errorModal');
+      if (!modal) return;
+      modal.setAttribute('aria-hidden', 'true');
+      modal.classList.remove('activo');
+    }
+
+    function showError(message) {
+      const modal = document.getElementById('errorModal');
+      const messageNode = document.getElementById('errorMessage');
+      if (!modal || !messageNode) {
+        console.error('ERROR:', message);
+        return;
+      }
+
+      messageNode.textContent = toFriendlyErrorMessage(message);
+      modal.setAttribute('aria-hidden', 'false');
+      modal.classList.add('activo');
+
+      const ok = document.getElementById('errorOk');
+      if (ok) ok.focus();
+    }
+
+    window.alert = (message) => showError(message);
 
     async function apiRequest(path, method = 'GET') {
       const response = await fetch(`${API}${path}`, { method });
@@ -194,6 +280,24 @@
     let estrategiaTimerId = null;
     let estrategiaSegundosRestantes = 15;
     let estrategiaModalActivo = null;
+    const errorModal = document.getElementById('errorModal');
+    const errorOk = document.getElementById('errorOk');
+
+    if (errorOk) {
+      errorOk.addEventListener('click', hideError);
+    }
+    if (errorModal) {
+      errorModal.addEventListener('click', (event) => {
+        if (event.target === errorModal) {
+          hideError();
+        }
+      });
+    }
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && errorModal?.getAttribute('aria-hidden') === 'false') {
+        hideError();
+      }
+    });
 
     function navegarConEstrategia(estrategia) {
       if (!getSessionValue('playerId')) {

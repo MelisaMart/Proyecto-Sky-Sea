@@ -50,7 +50,6 @@ main {
     height: 100%;
     display: block;
     object-fit: cover;
-    object-position: center;
 }
 
 /* Contenedor del logo principal */
@@ -184,6 +183,60 @@ main {
     padding: 10px 14px;
     font-size: 12px;
     border-radius: 8px;
+}
+
+.error {
+    z-index: 12000;
+}
+
+.error .error-box {
+    width: 440px;
+    max-width: 90%;
+    padding: 22px 18px 14px;
+    text-align: center;
+    background: #000000;
+    border: 2px solid #ff2e2e;
+    border-radius: 12px;
+    box-shadow:
+        0 0 18px rgba(255, 46, 46, 0.45),
+        0 20px 40px rgba(0, 0, 0, 0.85);
+}
+
+.error-title {
+    margin: 0 0 12px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 14px;
+    color: #ff2e2e;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.error-message {
+    margin: 0;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 11px;
+    line-height: 1.65;
+    color: #ffffff;
+}
+
+.error .modal-actions {
+    justify-content: center;
+    margin-top: 16px;
+}
+
+.error .error-ok {
+    min-width: 90px;
+    padding: 8px 14px;
+    font-size: 11px;
+    border-radius: 10px;
+    border-color: #ff2e2e;
+    color: #ff8a8a;
+}
+
+.error .error-ok:hover {
+    color: #000000;
+    background: #ff2e2e;
+    box-shadow: 0 0 14px rgba(255, 46, 46, 0.8);
 }
 
 /* Hover específico del botón de confirmación */
@@ -409,14 +462,44 @@ main {
     font-size: 14px;
     color: #ffd700;
     text-shadow:
-         2px 0 0 #000000,
+    2px 0 0 #000000,
     -2px 0 0 #000000,
-    0 2px 0 #000000,
-    0 -2px 0 #000000,
-    2px 2px 0 #000000,
-    -2px -2px 0 #000000,
-    2px -2px 0 #000000,
-    -2px 2px 0 #000000;
+        0 2px 0 #000000,
+        0 -2px 0 #000000,
+        2px 2px 0 #000000,
+        -2px -2px 0 #000000,
+        2px -2px 0 #000000,
+        -2px 2px 0 #000000;
+}
+
+.indicador-espera {
+    display: none;
+    position: fixed;
+    top: 48%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 20;
+    pointer-events: none;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 20px;
+    line-height: 1.6;
+    text-align: center;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #ff2e2e;
+    text-shadow:
+        3px 0 0 #000000,
+        -3px 0 0 #000000,
+        0 3px 0 #000000,
+        0 -3px 0 #000000,
+        3px 3px 0 #000000,
+        -3px -3px 0 #000000,
+        3px -3px 0 #000000,
+        -3px 3px 0 #000000;
+}
+
+.indicador-espera.visible {
+    display: block;
 }
 
 /* ================== HUD INFERIOR ================== */
@@ -641,6 +724,7 @@ main {
     outline: 2px dashed rgba(20, 107, 8, 0.808);
     cursor: pointer;
 }
+
 .celda.movible:hover {
     background-color: rgba(7, 143, 37, 0.342);
 }

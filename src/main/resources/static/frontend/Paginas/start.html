@@ -32,6 +32,7 @@
       <div class="tablero-header">
         <div class="tablero-info">
           <div id="indicadorJugador" class="indicador-jugador" aria-live="polite"></div>
+          <div id="indicadorEsperaJugador2" class="indicador-espera" aria-live="polite"></div>
           <div id="indicadorTurno" class="indicador-turno" aria-live="polite"></div>
           <div id="cronometroTurno" class="cronometro-turno" aria-live="polite"></div>
         </div>
@@ -92,14 +93,153 @@
   <!-- Pie de página reservado -->
   <footer class="footer"></footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
-  <script src="/frontend/js/lateral-attack.js"></script>
+  <div id="errorModal" class="modal-overlay error" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal-box error-box">
+      <p class="error-title">ERROR:</p>
+      <p id="errorMessage" class="error-message"></p>
+      <div class="modal-actions">
+        <button id="errorOk" class="game-btn error-ok" type="button">OK</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const API_BASE = (window.location.protocol === 'file:')
       ? 'http://localhost:8080'
       : '';
     const API = `${API_BASE}/api/game`;
+
+    const FRIENDLY_ERROR_BY_CODE = {
+      ACCION_YA_REALIZADA: 'La acción ya fue realizada en este turno.',
+      PLAYER_NO_ENCONTRADO: 'No se encontró tu jugador en esta partida. Volvé a ingresar desde INICIO.',
+      NO_ES_TU_TURNO: 'Todavía no es tu turno. Esperá a que termine la jugada del rival.',
+      YA_DISPARO_EN_ESTE_TURNO: 'Ya realizaste un disparo en este turno.',
+      YA_MOVIO_EN_ESTE_TURNO: 'Ya realizaste un movimiento en este turno.',
+      SIN_DRON_SELECCIONADO: 'Primero tenés que seleccionar un dron para continuar.',
+      DRON_INVALIDO_O_DESTRUIDO: 'El dron seleccionado no está disponible o fue destruido.',
+      SIN_MUNICION: 'El dron seleccionado no tiene munición disponible.',
+      FUERA_DE_RANGO: 'La celda elegida está fuera del rango de ataque permitido.',
+      FUERA_DE_TABLERO: 'La celda seleccionada está fuera del tablero.',
+      OBJETIVO_PROPIO: 'No podés apuntar a una unidad de tu propio equipo.',
+      OBJETIVO_DESTRUIDO: 'La unidad objetivo ya está destruida.',
+      NO_HAY_OBJETIVO_ENEMIGO: 'No hay un objetivo enemigo en esa posición.',
+      PARTIDA_NO_EN_JUEGO: 'La partida no está disponible en este momento.',
+      ESTADO_INVALIDO: 'No se puede realizar esta acción en el estado actual de la partida.',
+      HTTP_404: 'No se encontró el recurso solicitado en el servidor.',
+      HTTP_500: 'El servidor tuvo un problema interno al procesar la acción.',
+      HTTP_503: 'El servidor está temporalmente no disponible. Intentá nuevamente en unos segundos.'
+    };
+
+    function esErrorPartidaNoJugable(input) {
+      const text = normalizeErrorInput(input);
+      const normalized = text.toUpperCase();
+      const code = findErrorCode(text);
+      if (code === 'PARTIDA_NO_EN_JUEGO') return true;
+      return normalized.includes('PARTIDA NO EST') && normalized.includes('ESTADO JUGABLE');
+    }
+
+    function numeroJugadorRival() {
+      const actual = Number(numeroJugadorActual || getSessionValue('numeroJugador'));
+      if (actual === 1) return 2;
+      if (actual === 2) return 1;
+      return null;
+    }
+
+    function mensajeAbandonoRival() {
+      const rival = numeroJugadorRival();
+      if (rival) return `Jugador ${rival} abandonó la partida`;
+      return 'El rival abandonó la partida';
+    }
+
+    function salirAlInicio() {
+      [
+        'playerId',
+        'idPartida',
+        'equipoAsignado',
+        'numeroJugador',
+        'estrategiaSeleccionada'
+      ].forEach((key) => {
+        sessionStorage.removeItem(key);
+        localStorage.removeItem(key);
+      });
+      window.location.href = '/frontend/Index.html';
+    }
+
+    function normalizeErrorInput(input) {
+      const text = String(input ?? '').trim();
+      if (!text) return 'Ocurrió un error inesperado. Intentá nuevamente.';
+      return text;
+    }
+
+    function findErrorCode(text) {
+      const matches = text.toUpperCase().match(/[A-Z][A-Z0-9_]{2,}/g);
+      if (!matches) return null;
+      return matches.find((token) => FRIENDLY_ERROR_BY_CODE[token]) ?? null;
+    }
+
+    function toFriendlyErrorMessage(input) {
+      const text = normalizeErrorInput(input);
+      const code = findErrorCode(text);
+      if (code) {
+        const normalized = text.toUpperCase();
+        if (code === 'ACCION_YA_REALIZADA') {
+          if (normalized.includes('NO SE PUEDE MOVER')) return 'No se puede mover: acción ya realizada.';
+          if (normalized.includes('NO SE PUEDE DISPARAR')) return 'No se puede disparar: acción ya realizada.';
+          return 'La acción ya fue realizada en este turno.';
+        }
+        return FRIENDLY_ERROR_BY_CODE[code];
+      }
+
+      const normalized = text.toUpperCase();
+      if (
+        normalized.includes('FAILED TO FETCH')
+        || normalized.includes('NETWORK')
+        || normalized.includes('NO SE PUDO CONECTAR CON EL SERVIDOR')
+      ) {
+        return 'Se cayó el servidor';
+      }
+      if (normalized.includes('RESPUESTA NO VÁLIDA DEL SERVIDOR')) {
+        return 'El servidor devolvió una respuesta inválida. Intentá nuevamente.';
+      }
+
+      return text;
+    }
+
+    function hideError() {
+      const modal = document.getElementById('errorModal');
+      if (!modal) return;
+      modal.setAttribute('aria-hidden', 'true');
+      modal.classList.remove('activo');
+    }
+
+    function showError(message, options = {}) {
+      const modal = document.getElementById('errorModal');
+      const messageNode = document.getElementById('errorMessage');
+      if (!modal || !messageNode) {
+        console.error('ERROR:', message);
+        return;
+      }
+
+      const forzarSalida = options.forceExit === true;
+      const abandonoDetectado = forzarSalida || (yaEstuvoEnJuego && esErrorPartidaNoJugable(message));
+
+      messageNode.textContent = abandonoDetectado
+        ? mensajeAbandonoRival()
+        : toFriendlyErrorMessage(message);
+
+      modal.dataset.locked = abandonoDetectado ? '1' : '0';
+      modal.setAttribute('aria-hidden', 'false');
+      modal.classList.add('activo');
+
+      const ok = document.getElementById('errorOk');
+      if (ok) {
+        ok.textContent = abandonoDetectado ? 'Salir' : 'OK';
+        ok.onclick = abandonoDetectado ? salirAlInicio : hideError;
+        ok.focus();
+      }
+    }
+
+    window.alert = (message) => showError(message);
 
     function getSessionValue(key) {
       const fromSession = sessionStorage.getItem(key);
@@ -125,6 +265,7 @@
     const cronometroTurno = document.getElementById('cronometroTurno');
     const btnMover = document.getElementById('btnMover');
     const btnDisparar = document.getElementById('btnDisparar');
+    const indicadorEsperaJugador2 = document.getElementById('indicadorEsperaJugador2');
     const hudTipoTuEquipo = document.getElementById('hudTipoTuEquipo');
     const hudTipoEnemigo = document.getElementById('hudTipoEnemigo');
     const hudDronesTu = document.getElementById('hudDronesTu');
@@ -139,6 +280,29 @@
     const hudIconMunicionEnemigo = document.getElementById('hudIconMunicionEnemigo');
     const hudIconPortaTu = document.getElementById('hudIconPortaTu');
     const hudIconPortaEnemigo = document.getElementById('hudIconPortaEnemigo');
+    const errorModal = document.getElementById('errorModal');
+    const errorOk = document.getElementById('errorOk');
+
+    if (errorOk) {
+      errorOk.textContent = 'OK';
+      errorOk.onclick = hideError;
+    }
+    if (errorModal) {
+      errorModal.addEventListener('click', (event) => {
+        if (event.target === errorModal && errorModal.dataset.locked !== '1') {
+          hideError();
+        }
+      });
+    }
+    document.addEventListener('keydown', (event) => {
+      if (
+        event.key === 'Escape'
+        && errorModal?.getAttribute('aria-hidden') === 'false'
+        && errorModal?.dataset.locked !== '1'
+      ) {
+        hideError();
+      }
+    });
     let numeroJugadorActual = Number(getSessionValue('numeroJugador'));
     const TIEMPO_TURNO_SEGUNDOS = 30;
     let duracionTurnoSegundos = TIEMPO_TURNO_SEGUNDOS;
@@ -148,6 +312,16 @@
     let refreshInFlight = false;
     let recuperandoSesion = false;
     let alertaSesionMostrada = false;
+    let yaEstuvoEnJuego = false;
+    let abandonoNotificado = false;
+    let refreshIntervalId = null;
+
+    function detenerActualizacionPartida() {
+      if (refreshIntervalId !== null) {
+        clearInterval(refreshIntervalId);
+        refreshIntervalId = null;
+      }
+    }
     function getPlayerIdActual() {
       if (!playerId) {
         playerId = getSessionValue('playerId');
@@ -250,6 +424,22 @@
       actualizarCronometroTurnoVisual(esMiTurno === true);
     }
 
+    function actualizarCartelEsperaJugador2(estadoPartida, numeroJugador) {
+      if (!indicadorEsperaJugador2) return;
+
+      const esJugador1 = Number(numeroJugador) === 1;
+      const esperandoRival = String(estadoPartida || '').toUpperCase() === 'ESPERANDO_RIVAL';
+
+      if (esJugador1 && esperandoRival) {
+        indicadorEsperaJugador2.textContent = 'ESPERANDO JUGADOR 2';
+        indicadorEsperaJugador2.classList.add('visible');
+        return;
+      }
+
+      indicadorEsperaJugador2.textContent = '';
+      indicadorEsperaJugador2.classList.remove('visible');
+    }
+
     // entrega: función genérica para terminar el turno. Se puede invocar
     // desde el timeout o desde un botón manual. Retorna la respuesta si hay OK
     // y lanza error en caso contrario.
@@ -324,201 +514,6 @@
       if (btnDisparar) btnDisparar.disabled = true;
     }
 
-    function tipoAtacanteDesdeSeleccion(data = null) {
-      const proyectilBackend = String(data?.tipoProyectilDisparo || '').toUpperCase();
-      if (proyectilBackend === 'MISIL') return 'dronNaval';
-      if (proyectilBackend === 'BOMBA') return 'dronAereo';
-
-      const tipoSeleccion = String(selectedDron?.type || '').toUpperCase();
-      if (tipoSeleccion === 'MISIL') return 'dronNaval';
-      if (tipoSeleccion === 'BOMBA') return 'dronAereo';
-
-      const equipo = String(getSessionValue('equipoAsignado') || '').toUpperCase();
-      return equipo === 'AEREO' ? 'dronAereo' : 'dronNaval';
-    }
-
-    function construirEventoLateralDesdeShot(data) {
-      if (!data || data.ok !== true) return null;
-
-      const resultadoBackend = String(data.resultado || '').toUpperCase();
-      const objetivoBackend = String(data.objetivo || '').toUpperCase();
-      const proyectilBackend = String(data.tipoProyectilDisparo || '').toUpperCase();
-      const hayImpactoPorta = Number.isFinite(Number(data.impactosRestantesPorta));
-      const hayImpactoDron = Number.isFinite(Number(data.vidaObjetivo));
-      const esHit = resultadoBackend === 'HIT' || (objetivoBackend === 'PORTA' && hayImpactoPorta) || (objetivoBackend === 'DRON' && hayImpactoDron);
-      if (!esHit) return null;
-
-      const atacante = proyectilBackend === 'MISIL'
-        ? 'dronNaval'
-        : proyectilBackend === 'BOMBA'
-          ? 'dronAereo'
-          : tipoAtacanteDesdeSeleccion(data);
-      const weapon = proyectilBackend === 'MISIL'
-        ? 'missile'
-        : proyectilBackend === 'BOMBA'
-          ? 'bomb'
-          : (atacante === 'dronNaval' ? 'missile' : 'bomb');
-
-      let targetType = null;
-      if (objetivoBackend === 'DRON') {
-        targetType = atacante === 'dronNaval' ? 'dronAereo' : 'dronNaval';
-      } else if (objetivoBackend === 'PORTA') {
-        targetType = atacante === 'dronNaval' ? 'portaAereo' : 'portaNaval';
-      }
-
-      if (!targetType) {
-        console.warn('[Lateral] Objetivo no soportado para animación lateral', data);
-        return null;
-      }
-
-      if (weapon === 'missile' && objetivoBackend === 'DRON') {
-        return {
-          weapon: 'missile',
-          attackerType: 'dronNaval',
-          targetType: 'dronAereo',
-          result: 'destroy',
-          sequenceToken: [
-            resultadoBackend,
-            objetivoBackend,
-            Number.isFinite(Number(data.vidaObjetivo)) ? Number(data.vidaObjetivo) : 'NA',
-            Number.isFinite(Number(data.impactosRestantesPorta)) ? Number(data.impactosRestantesPorta) : 'NA',
-            Number.isFinite(Number(data.municionRestante)) ? Number(data.municionRestante) : 'NA',
-            proyectilBackend || 'NA'
-          ].join('|')
-        };
-      }
-
-      let result = 'damage';
-      const vidaObjetivo = Number(data.vidaObjetivo);
-      const impactosPorta = Number(data.impactosRestantesPorta);
-
-      if (objetivoBackend === 'DRON' && Number.isFinite(vidaObjetivo) && vidaObjetivo <= 0) {
-        result = 'destroy';
-      }
-      if (objetivoBackend === 'PORTA' && Number.isFinite(impactosPorta) && impactosPorta <= 0) {
-        result = 'destroy';
-      }
-      if (atacante === 'dronNaval' && targetType === 'dronAereo') {
-        result = 'destroy';
-      }
-
-      return {
-        weapon,
-        attackerType: atacante,
-        targetType,
-        result,
-        sequenceToken: [
-          resultadoBackend,
-          objetivoBackend,
-          Number.isFinite(vidaObjetivo) ? vidaObjetivo : 'NA',
-          Number.isFinite(impactosPorta) ? impactosPorta : 'NA',
-          Number.isFinite(Number(data.municionRestante)) ? Number(data.municionRestante) : 'NA',
-          proyectilBackend || 'NA'
-        ].join('|')
-      };
-    }
-
-    function construirAttackKeyFallback(evento) {
-      if (!evento) return null;
-
-      const arma = String(evento.weapon || '').toLowerCase();
-      const atacante = String(evento.attackerType || '').toLowerCase();
-      const objetivo = String(evento.targetType || '').toLowerCase();
-      const resultado = String(evento.result || '').toLowerCase();
-
-      if (arma === 'missile' && atacante === 'dronnaval' && objetivo === 'portaaereo') {
-        return resultado === 'destroy'
-          ? 'DronNavalVsPortaAereoDestruccion'
-          : 'DronNavalVsPortaAereoImpacto';
-      }
-
-      if (arma === 'missile' && atacante === 'dronnaval' && objetivo === 'dronaereo' && resultado === 'destroy') {
-        return 'DronNavalVsDronAereo';
-      }
-
-      if (arma === 'bomb' && atacante === 'dronaereo' && objetivo === 'dronnaval') {
-        return resultado === 'destroy'
-          ? 'DronAereoVsDronNavalDestruccion'
-          : 'DronAereoVsDronNavalImpacto';
-      }
-
-      if (arma === 'bomb' && atacante === 'dronaereo' && objetivo === 'portanaval') {
-        return resultado === 'destroy'
-          ? 'DronAereoVsPortaNavalDestruccion'
-          : 'DronAereoVsPortaNavalImpacto';
-      }
-
-      return null;
-    }
-
-    async function reproducirVistaLateralDesdeShot(data) {
-      const lateralApi = window.SkySeaLateral;
-      if (!lateralApi) {
-        console.warn('[Lateral] API no disponible para reproducir animación', { data });
-        return;
-      }
-
-      const resultadoBackend = String(data?.resultado || '').toUpperCase();
-      const objetivoBackend = String(data?.objetivo || '').toUpperCase();
-      const proyectilBackend = String(data?.tipoProyectilDisparo || '').toUpperCase();
-
-      const esNavalVsAereo = proyectilBackend === 'MISIL' && objetivoBackend === 'DRON' && resultadoBackend === 'HIT';
-
-      let evento = construirEventoLateralDesdeShot(data);
-      if (!evento && esNavalVsAereo) {
-        evento = {
-          weapon: 'missile',
-          attackerType: 'dronNaval',
-          targetType: 'dronAereo',
-          result: 'destroy',
-          sequenceToken: [
-            resultadoBackend,
-            objetivoBackend,
-            Number.isFinite(Number(data?.vidaObjetivo)) ? Number(data.vidaObjetivo) : 'NA',
-            Number.isFinite(Number(data?.municionRestante)) ? Number(data.municionRestante) : 'NA',
-            proyectilBackend
-          ].join('|')
-        };
-      }
-
-      if (!evento) return;
-
-      if (typeof lateralApi.playShotEvent !== 'function' && typeof lateralApi.playLateralAttackByKey !== 'function') {
-        console.warn('[Lateral] API sin métodos de reproducción', { evento, data });
-        return;
-      }
-
-      try {
-        if (
-          (esNavalVsAereo || evento.weapon === 'missile')
-          && evento.attackerType === 'dronNaval'
-          && evento.targetType === 'dronAereo'
-          && typeof lateralApi.playLateralAttackByKey === 'function'
-        ) {
-          await lateralApi.playLateralAttackByKey('DronNavalVsDronAereo', { event: evento });
-          return;
-        }
-
-        if (typeof lateralApi.playShotEvent === 'function') {
-          const reprodujo = await lateralApi.playShotEvent(evento);
-          if (reprodujo) {
-            return;
-          }
-        }
-
-        const keyFallback = construirAttackKeyFallback(evento);
-        if (keyFallback && typeof lateralApi.playLateralAttackByKey === 'function') {
-          console.warn('[Lateral] Mapper principal no resolvió, uso fallback', { evento, keyFallback });
-          await lateralApi.playLateralAttackByKey(keyFallback, { event: evento });
-          return;
-        }
-
-        console.warn('[Lateral] No se pudo resolver animación lateral para evento', { evento, data });
-      } catch (error) {
-        console.warn('[Lateral] Error al reproducir animación', error);
-      }
-    }
-
     function enterShootMode(reintento = false) {
       if (!selectedDron || shootMode) return;
       shootMode = true;
@@ -551,6 +546,7 @@
           }
 
           const celdasDisponibles = disponibles.celdas || [];
+
           celdasDisponibles.forEach(({x, y}) => {
             const celdaData = celdas.find(c => c.col === x && c.fila === y);
             if (!celdaData) return;
@@ -571,7 +567,6 @@
                 );
 
                 if (data.ok) {
-                  await reproducirVistaLateralDesdeShot(data);
                   if (btnDisparar) btnDisparar.disabled = true;
                   exitShootMode();
                   await refreshPartidaState();
@@ -851,6 +846,11 @@
           numeroJugadorActual = state.numeroJugador;
           setSessionValue('numeroJugador', String(state.numeroJugador));
           actualizarIndicadorJugador(state.numeroJugador);
+          actualizarCartelEsperaJugador2(state.estadoPartida, state.numeroJugador);
+
+          if (String(state.estadoPartida || '').toUpperCase() === 'EN_JUEGO') {
+            yaEstuvoEnJuego = true;
+          }
 
           const numeroTurnoRecibido = Number(state.numeroTurno);
           if (Number.isFinite(numeroTurnoRecibido)) {
@@ -881,6 +881,7 @@
             sincronizarCronometroTurno(false, 0, Number(state.duracionTurnoSegundos));
           }
         } else {
+          actualizarCartelEsperaJugador2(state.estadoPartida, numeroJugadorActual);
           sincronizarCronometroTurno(false, 0, Number(state.duracionTurnoSegundos));
         }
 
@@ -893,7 +894,18 @@
           console.warn('No se pudo actualizar HUD inferior:', errBoard.message);
         }
       } catch (error) {
+        actualizarCartelEsperaJugador2(null, numeroJugadorActual);
         sincronizarCronometroTurno(false, 0, duracionTurnoSegundos);
+
+        if (yaEstuvoEnJuego && esErrorPartidaNoJugable(error?.message || error)) {
+          if (!abandonoNotificado) {
+            abandonoNotificado = true;
+            detenerActualizacionPartida();
+            showError(mensajeAbandonoRival(), { forceExit: true });
+          }
+          return;
+        }
+
         if (String(error.message || '').includes('PLAYER_NO_ENCONTRADO')) {
           await intentarRecuperarSesion();
           return;
@@ -1258,7 +1270,6 @@
         if (dronesObjetivo.has(dronId)) return;
         renderActual.celda.classList.remove('ocupada-dron', 'seleccionado', 'celda-ammo-verde', 'celda-ammo-amarillo', 'celda-ammo-rojo');
         delete renderActual.celda.dataset.dronId;
-        delete renderActual.celda.dataset.dronType;
         delete renderActual.celda.dataset.dronEquipo;
         renderActual.celda.querySelectorAll('img.elemento-formacion').forEach((img) => img.remove());
       });
@@ -1287,7 +1298,6 @@
         }
         celdaDestino.dataset.dronId = dron.id;
         celdaDestino.dataset.dronEquipo = dron.equipo || '';
-        celdaDestino.dataset.dronType = dron.type || '';
         idsVivos.add(dron.id);
 
         let img = celdaDestino.querySelector('img.elemento-formacion');
@@ -1418,8 +1428,7 @@
                   id: dronId,
                   fila: parseInt(celda.dataset.fila),
                   col: parseInt(celda.dataset.col),
-                  cell: celda,
-                  type: celda.dataset.dronType || ''
+                  cell: celda
                 };
                 // activar botón mover y cancelar cualquier modo previo
                 exitMoveMode();
@@ -1485,7 +1494,7 @@
     })();
 
     refreshPartidaState();
-    setInterval(refreshPartidaState, 1000);
+    refreshIntervalId = setInterval(refreshPartidaState, 1000);
   </script>
 </body>
 </html>
