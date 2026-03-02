@@ -786,9 +786,16 @@ public class ServicioPartida {
         public final Integer municionRestante;  // munición del dron disparador después
         public final Integer vidaObjetivo;      // vida del dron objetivo (si aplica)
         public final Integer impactosRestantesPorta; // impactos restantes de porta (si aplica)
+        public final String tipoProyectilDisparo; // "MISIL" o "BOMBA" (si aplica)
 
         public ShootResponse(boolean ok, String estado, String resultado, String objetivo,
                              Integer municionRestante, Integer vidaObjetivo, Integer impactosRestantesPorta) {
+            this(ok, estado, resultado, objetivo, municionRestante, vidaObjetivo, impactosRestantesPorta, null);
+        }
+
+        public ShootResponse(boolean ok, String estado, String resultado, String objetivo,
+                             Integer municionRestante, Integer vidaObjetivo, Integer impactosRestantesPorta,
+                             String tipoProyectilDisparo) {
             this.ok = ok;
             this.estado = estado;
             this.resultado = resultado;
@@ -796,6 +803,7 @@ public class ServicioPartida {
             this.municionRestante = municionRestante;
             this.vidaObjetivo = vidaObjetivo;
             this.impactosRestantesPorta = impactosRestantesPorta;
+            this.tipoProyectilDisparo = tipoProyectilDisparo;
         }
     }
 
@@ -919,7 +927,7 @@ public class ServicioPartida {
             jugador.marcarDisparoRealizado();
             avanzarTurnoSiAccionCompleta(partida, jugador);
             dao.save(partida);
-            return new ShootResponse(true, "OK", resultado, "DRON", dronDispara.getMunicion(), vidaRestante, null);
+            return new ShootResponse(true, "OK", resultado, "DRON", dronDispara.getMunicion(), vidaRestante, null, proyectil.name());
         }
 
         if (portaObjetivo != null) {
@@ -930,14 +938,14 @@ public class ServicioPartida {
                 jugador.marcarDisparoRealizado();
                 avanzarTurnoSiAccionCompleta(partida, jugador);
                 dao.save(partida);
-                return new ShootResponse(true, "OK", resultado, "PORTA", dronDispara.getMunicion(), null, impactosRestantes);
+                return new ShootResponse(true, "OK", resultado, "PORTA", dronDispara.getMunicion(), null, impactosRestantes, proyectil.name());
             } else {
                 // Arma no compatible contra esta porta (MISS)
                 String resultado = "MISS";
                 jugador.marcarDisparoRealizado();
                 avanzarTurnoSiAccionCompleta(partida, jugador);
                 dao.save(partida);
-                return new ShootResponse(true, "OK", resultado, "PORTA", dronDispara.getMunicion(), null, null);
+                return new ShootResponse(true, "OK", resultado, "PORTA", dronDispara.getMunicion(), null, null, proyectil.name());
             }
         }
 

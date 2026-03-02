@@ -211,6 +211,9 @@ public class GameController {
             out.put("resultado", r.resultado);
             out.put("objetivo", r.objetivo);
             out.put("municionRestante", r.municionRestante);
+            if (r.tipoProyectilDisparo != null) {
+                out.put("tipoProyectilDisparo", r.tipoProyectilDisparo);
+            }
             if (r.vidaObjetivo != null) {
                 out.put("vidaObjetivo", r.vidaObjetivo);
             }
