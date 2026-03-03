@@ -103,6 +103,19 @@
     </div>
   </div>
 
+  <!-- Modal de fin de partida (Victoria/Derrota) -->
+  <div id="finPartidaModal" class="modal-overlay fin-partida" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal-box fin-partida-box">
+      <div id="finPartidaTitulo" class="fin-partida-titulo">VICTORIA</div>
+      <div id="finPartidaSubtitulo" class="fin-partida-subtitulo">Destroza el porta enemigo</div>
+      <div class="fin-partida-separator"></div>
+      <div id="finPartidaMensaje" class="fin-partida-mensaje">¡Felicidades! Tu equipo ha ganado la partida.</div>
+      <div class="modal-actions">
+        <button id="finPartidaVolverBtn" class="game-btn fin-partida-btn" type="button">VOLVER AL MENÚ</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const API_BASE = (window.location.protocol === 'file:')
       ? 'http://localhost:8080'
@@ -134,6 +147,10 @@
       const text = normalizeErrorInput(input);
       const normalized = text.toUpperCase();
       const code = findErrorCode(text);
+      // No tratar finalizada como abandono
+      if (code === 'PARTIDA_FINALIZADA' || normalized.includes('FINALIZADA')) {
+        return false;
+      }
       if (code === 'PARTIDA_NO_EN_JUEGO') return true;
       return normalized.includes('PARTIDA NO EST') && normalized.includes('ESTADO JUGABLE');
     }
@@ -237,6 +254,84 @@
         ok.onclick = abandonoDetectado ? salirAlInicio : hideError;
         ok.focus();
       }
+    }
+
+    /**
+     * Muestra el modal de fin de partida (VICTORIA o DERROTA)
+     * @param {boolean} esVictoria - true si ganó el jugador, false si perdió
+     * @param {string} motivoFin - "PORTA_DESTRUIDO", "SIN_DRONES", "SIN_MUNICION"
+     */
+    function mostrarFinPartida(esVictoria, motivoFin) {
+      const modal = document.getElementById('finPartidaModal');
+      const titulo = document.getElementById('finPartidaTitulo');
+      const subtitulo = document.getElementById('finPartidaSubtitulo');
+      const mensaje = document.getElementById('finPartidaMensaje');
+      const volverBtn = document.getElementById('finPartidaVolverBtn');
+
+      if (!modal) return;
+
+      // Actualizar título
+      titulo.textContent = esVictoria ? '¡VICTORIA!' : 'DERROTA';
+      titulo.className = 'fin-partida-titulo ' + (esVictoria ? 'victoria' : 'derrota');
+      // marcar clase en el contenedor para ajustar colores generales
+      const box = modal.querySelector('.fin-partida-box');
+      if (box) {
+        box.classList.toggle('victoria', esVictoria);
+        box.classList.toggle('derrota', !esVictoria);
+      }
+
+      // Actualizar subtítulo según motivo
+      let textoMotivo = 'Fin de partida';
+      let textoDetalle = '';
+
+      switch (motivoFin) {
+        case 'PORTA_DESTRUIDO':
+          textoMotivo = '🎯 Porta Destruido';
+          textoDetalle = esVictoria
+            ? 'Destruiste el porta enemigo.'
+            : 'Tu porta fue destruido.';
+          break;
+        case 'SIN_DRONES':
+          textoMotivo = '☠️ Sin Drones';
+          textoDetalle = esVictoria
+            ? 'El enemigo se quedó sin drones.'
+            : 'Tu equipo se quedó sin drones.';
+          break;
+        case 'SIN_MUNICION':
+          textoMotivo = '💥 Sin Munición';
+          textoDetalle = esVictoria
+            ? 'El enemigo se quedó sin munición.'
+            : 'Tu equipo se quedó sin munición.';
+          break;
+      }
+
+      subtitulo.textContent = textoMotivo;
+      mensaje.textContent = textoDetalle || (esVictoria
+        ? '¡Felicidades! Tu equipo ha ganado la partida.'
+        : 'Lamentablemente tu equipo ha perdido. ¡Intenta de nuevo!');
+
+      // Mostrar modal
+      modal.setAttribute('aria-hidden', 'false');
+      modal.classList.add('activo');
+
+      // Configurar botón
+      if (volverBtn) {
+        volverBtn.textContent = 'VOLVER AL MENÚ';
+        volverBtn.onclick = salirAlInicio;
+        volverBtn.focus();
+      }
+
+      // Deshabilitar controles de juego
+      if (btnMover) btnMover.disabled = true;
+      if (btnDisparar) btnDisparar.disabled = true;
+      const btnPlay = document.getElementById('btnPlay');
+      if (btnPlay) btnPlay.disabled = true;
+
+      // Limpiar selecciones
+      limpiarSeleccionLocal();
+
+      // Detener actualización de partida
+      detenerActualizacionPartida();
     }
 
     window.alert = (message) => showError(message);
@@ -894,6 +989,16 @@
 
       try {
         const state = await apiRequest(`/state2?playerId=${encodeURIComponent(playerIdActual)}`);
+
+        // ========== VERIFICAR FIN DE PARTIDA ==========
+        if (state.partidaFinalizada === true || state.estadoPartida === 'FINALIZADA') {
+          const equipoActual = state.equipo || getSessionValue('equipoAsignado');
+          const esVictoria = state.ganador === equipoActual;
+          mostrarFinPartida(esVictoria, state.motivoFin);
+          // detener actualización y evitar próxima llamada a board
+          refreshInFlight = false;
+          return; // No continuar actualizando
+        }
 
         if (state.equipo) {
           setSessionValue('equipoAsignado', state.equipo);

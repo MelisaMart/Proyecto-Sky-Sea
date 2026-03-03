@@ -1021,3 +1021,236 @@ main {
     box-shadow: 0 0 25px #00ff00;
     transform: scale(1.08);
 }
+/* ========== ESTILOS MODAL FIN DE PARTIDA ========== */
+
+.fin-partida {
+    z-index: 12000;
+}
+
+.fin-partida-box {
+    width: 520px;
+    max-width: 90%;
+    padding: 40px 32px;
+    text-align: center;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+    border: 3px solid #00ff00;
+    border-radius: 16px;
+    box-shadow:
+        0 0 40px rgba(0, 255, 0, 0.6),
+        0 0 80px rgba(0, 255, 0, 0.3),
+        0 20px 60px rgba(0, 0, 0, 0.95),
+        inset 0 0 20px rgba(0, 255, 0, 0.1);
+    backdrop-filter: blur(10px);
+    animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* variante derrota: rojo en lugar de verde */
+.fin-partida-box.derrota {
+    border-color: #ff4444;
+    box-shadow:
+        0 0 40px rgba(255, 68, 68, 0.6),
+        0 0 80px rgba(255, 68, 68, 0.3),
+        0 20px 60px rgba(0, 0, 0, 0.95),
+        inset 0 0 20px rgba(255, 68, 68, 0.1);
+}
+.fin-partida-box.derrota .fin-partida-subtitulo {
+    color: #ff8888;
+}
+.fin-partida-box.derrota .fin-partida-mensaje {
+    color: #ffcfcf;
+}
+.fin-partida-box.derrota .fin-partida-separator {
+    background: linear-gradient(90deg, 
+        transparent, 
+        #ff4444 10%, 
+        #ff4444 90%, 
+        transparent);
+    box-shadow: 0 0 15px rgba(255, 68, 68, 0.6);
+}
+.fin-partida-box.derrota .fin-partida-btn {
+    background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+    color: #000000;
+    border: 2px solid #ff4444;
+    box-shadow: 0 0 20px rgba(255, 68, 68, 0.6);
+}
+.fin-partida-box.derrota .fin-partida-btn:hover {
+    background: linear-gradient(135deg, #ff4444 0%, #ff4444 100%);
+    box-shadow: 
+        0 0 30px rgba(255, 68, 68, 0.9),
+        0 0 60px rgba(255, 68, 68, 0.6),
+        inset 0 0 20px rgba(0, 0, 0, 0.2);
+}
+.fin-partida-box.derrota .fin-partida-btn:active {
+    box-shadow: 
+        0 0 15px rgba(255, 68, 68, 0.6),
+        inset 0 0 20px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes pulse-glow {
+    0%, 100% { 
+        box-shadow:
+            0 0 40px rgba(0, 255, 0, 0.6),
+            0 0 80px rgba(0, 255, 0, 0.3),
+            0 20px 60px rgba(0, 0, 0, 0.95),
+            inset 0 0 20px rgba(0, 255, 0, 0.1);
+    }
+    50% { 
+        box-shadow:
+            0 0 60px rgba(0, 255, 0, 0.8),
+            0 0 100px rgba(0, 255, 0, 0.5),
+            0 20px 60px rgba(0, 0, 0, 0.95),
+            inset 0 0 30px rgba(0, 255, 0, 0.15);
+    }
+}
+
+@keyframes pulse-glow-red {
+    0%, 100% { 
+        box-shadow:
+            0 0 40px rgba(255, 68, 68, 0.6),
+            0 0 80px rgba(255, 68, 68, 0.3),
+            0 20px 60px rgba(0, 0, 0, 0.95),
+            inset 0 0 20px rgba(255, 68, 68, 0.1);
+    }
+    50% { 
+        box-shadow:
+            0 0 60px rgba(255, 68, 68, 0.8),
+            0 0 100px rgba(255, 68, 68, 0.5),
+            0 20px 60px rgba(0, 0, 0, 0.95),
+            inset 0 0 30px rgba(255, 68, 68, 0.15);
+    }
+}
+
+.fin-partida-titulo {
+    margin: 0 0 16px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 32px;
+    font-weight: bold;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    text-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+    color: #00ff00;
+    animation: flicker-text 0.3s infinite alternate;
+}
+
+.fin-partida-titulo.victoria {
+    color: #00ff00;
+    text-shadow: 0 0 20px rgba(0, 255, 0, 0.8),
+                 0 0 40px rgba(0, 255, 0, 0.5);
+}
+
+.fin-partida-titulo.derrota {
+    color: #ff4444;
+    text-shadow: 0 0 20px rgba(255, 68, 68, 0.8),
+                 0 0 40px rgba(255, 68, 68, 0.5);
+    animation: flicker-text-red 0.3s infinite alternate;
+}
+
+@keyframes flicker-text-red {
+    0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+        text-shadow: 0 0 20px rgba(255, 68, 68, 0.8);
+        color: #ff4444;
+    }
+    20%, 24%, 55% {
+        text-shadow: 0 0 10px rgba(255, 68, 68, 0.3);
+        color: #aa0000;
+    }
+}
+
+@keyframes flicker-text {
+    0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+        text-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+        color: #00ff00;
+    }
+    20%, 24%, 55% {
+        text-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+        color: #00aa00;
+    }
+}
+
+.fin-partida-subtitulo {
+    margin: 0 0 20px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 16px;
+    color: #ffff00;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.fin-partida-separator {
+    width: 80%;
+    height: 2px;
+    margin: 20px auto;
+    background: linear-gradient(90deg, 
+        transparent, 
+        #00ff00 10%, 
+        #00ff00 90%, 
+        transparent);
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.6);
+}
+
+.fin-partida-mensaje {
+    margin: 20px 0 32px;
+    font-family: 'Arial', sans-serif;
+    font-size: 14px;
+    line-height: 1.8;
+    color: #ffffff;
+    font-weight: 500;
+}
+
+.fin-partida .modal-actions {
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.fin-partida-btn {
+    min-width: 200px;
+    padding: 16px 24px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 13px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    background: linear-gradient(135deg, #00ff00 0%, #00cc00 100%);
+    color: #000000;
+    border: 2px solid #00ff00;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.6);
+}
+
+.fin-partida-btn:hover {
+    background: linear-gradient(135deg, #00ff00 0%, #00ff00 100%);
+    box-shadow: 
+        0 0 30px rgba(0, 255, 0, 0.9),
+        0 0 60px rgba(0, 255, 0, 0.6),
+        inset 0 0 20px rgba(0, 0, 0, 0.2);
+    transform: scale(1.05) translateY(-2px);
+}
+
+.fin-partida-btn:active {
+    transform: scale(0.98) translateY(1px);
+    box-shadow: 
+        0 0 15px rgba(0, 255, 0, 0.6),
+        inset 0 0 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Animación de entrada del modal */
+.fin-partida.activo .fin-partida-box {
+    animation: slide-in-from-bottom 0.5s ease-out, pulse-glow 2s ease-in-out infinite;
+}
+
+.fin-partida.activo .fin-partida-box.derrota {
+    animation: slide-in-from-bottom 0.5s ease-out, pulse-glow-red 2s ease-in-out infinite;
+}
+
+@keyframes slide-in-from-bottom {
+    from {
+        opacity: 0;
+        transform: translateY(40px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

@@ -79,17 +79,21 @@ public class GameController {
     public Object state2(@RequestParam String playerId) {
         try {
             var estado = servicioPartida.obtenerEstadoTurno(playerId);
-            return java.util.Map.of(
-                    "idPartida", estado.idPartida,
-                    "estadoPartida", estado.estadoPartida,
-                    "turnoDe", estado.turnoDe,
-                    "numeroTurno", estado.numeroTurno,
-                    "equipo", estado.equipo,
-                    "numeroJugador", estado.numeroJugador,
-                    "esMiTurno", estado.esMiTurno,
-                    "segundosRestantesTurno", estado.segundosRestantesTurno,
-                    "duracionTurnoSegundos", estado.duracionTurnoSegundos
-            );
+            java.util.Map<String,Object> out = new java.util.HashMap<>();
+            out.put("idPartida", estado.idPartida);
+            out.put("estadoPartida", estado.estadoPartida);
+            out.put("turnoDe", estado.turnoDe);
+            out.put("numeroTurno", estado.numeroTurno);
+            out.put("equipo", estado.equipo);
+            out.put("numeroJugador", estado.numeroJugador);
+            out.put("esMiTurno", estado.esMiTurno);
+            out.put("segundosRestantesTurno", estado.segundosRestantesTurno);
+            out.put("duracionTurnoSegundos", estado.duracionTurnoSegundos);
+            // campos de fin de partida
+            out.put("partidaFinalizada", estado.partidaFinalizada);
+            out.put("ganador", estado.ganador);
+            out.put("motivoFin", estado.motivoFin);
+            return out;
         } catch (Exception e) {
             return java.util.Map.of(
                     "error", e.getMessage()

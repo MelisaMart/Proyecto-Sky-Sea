@@ -143,6 +143,11 @@ public class ServicioPartida {
                 ? partida.segundosRestantesTurno(System.currentTimeMillis())
                 : 0;
 
+        // Información de fin de partida (si aplica)
+        boolean partidaFinalizada = partida.getEstado() == EstadoPartida.FINALIZADA;
+        String ganador = partidaFinalizada && partida.getGanador() != null ? partida.getGanador().name() : null;
+        String motivoFin = partidaFinalizada && partida.getMotivoFin() != null ? partida.getMotivoFin().name() : null;
+
         return new TurnoEstadoResponse(
                 partida.getIdPartida(),
                 partida.getEstado().name(),
@@ -152,7 +157,10 @@ public class ServicioPartida {
                 partida.numeroJugadorPorId(playerId),
                 esMiTurno,
                 segundosRestantes,
-                Partida.DURACION_TURNO_SEGUNDOS
+                Partida.DURACION_TURNO_SEGUNDOS,
+                partidaFinalizada,
+                ganador,
+                motivoFin
         );
     }
 
@@ -787,15 +795,27 @@ public class ServicioPartida {
         public final Integer vidaObjetivo;      // vida del dron objetivo (si aplica)
         public final Integer impactosRestantesPorta; // impactos restantes de porta (si aplica)
         public final String tipoProyectilDisparo; // "MISIL" o "BOMBA" (si aplica)
+        public final boolean partidaFinalizada;  // Si la partida finalizó después del disparo
+        public final String ganador;             // "NAVAL" o "AEREO" (null si no finalizó)
+        public final String motivoFin;          // "PORTA_DESTRUIDO", "SIN_DRONES", "SIN_MUNICION" (null si no finalizó)
 
         public ShootResponse(boolean ok, String estado, String resultado, String objetivo,
                              Integer municionRestante, Integer vidaObjetivo, Integer impactosRestantesPorta) {
-            this(ok, estado, resultado, objetivo, municionRestante, vidaObjetivo, impactosRestantesPorta, null);
+            this(ok, estado, resultado, objetivo, municionRestante, vidaObjetivo, impactosRestantesPorta, null,
+                 false, null, null);
         }
 
         public ShootResponse(boolean ok, String estado, String resultado, String objetivo,
                              Integer municionRestante, Integer vidaObjetivo, Integer impactosRestantesPorta,
                              String tipoProyectilDisparo) {
+            this(ok, estado, resultado, objetivo, municionRestante, vidaObjetivo, impactosRestantesPorta,
+                 tipoProyectilDisparo, false, null, null);
+        }
+
+        public ShootResponse(boolean ok, String estado, String resultado, String objetivo,
+                             Integer municionRestante, Integer vidaObjetivo, Integer impactosRestantesPorta,
+                             String tipoProyectilDisparo, boolean partidaFinalizada, String ganador,
+                             String motivoFin) {
             this.ok = ok;
             this.estado = estado;
             this.resultado = resultado;
@@ -804,6 +824,76 @@ public class ServicioPartida {
             this.vidaObjetivo = vidaObjetivo;
             this.impactosRestantesPorta = impactosRestantesPorta;
             this.tipoProyectilDisparo = tipoProyectilDisparo;
+            this.partidaFinalizada = partidaFinalizada;
+            this.ganador = ganador;
+            this.motivoFin = motivoFin;
+        }
+    }
+
+    /**
+     * Evalúa si la partida debe finalizarse y la actualiza si corresponde.
+     * Verifica en este orden de prioridad:
+     * 1) Si el porta enemigo está destruido -> PORTA_DESTRUIDO
+     * 2) Si el equipo enemigo no tiene drones vivos -> SIN_DRONES
+     * 3) Si el equipo enemigo no tiene munición total -> SIN_MUNICION
+     *
+     * Solo evalúa si la partida está EN_JUEGO.
+     */
+    private void evaluarFinPartidaYActualizar(Partida partida) {
+        if (partida.getEstado() != EstadoPartida.EN_JUEGO) {
+            return;
+        }
+
+        // Obtener jugadores por equipo
+        Jugador jugadorNaval = jugadorPorEquipo(partida, Equipo.NAVAL);
+        Jugador jugadorAereo = jugadorPorEquipo(partida, Equipo.AEREO);
+
+        if (jugadorNaval == null || jugadorAereo == null) {
+            return;
+        }
+
+        // Verificar derrota en NAVAL (siendo derrotado, AEREO gana)
+        if (jugadorNaval.portaDestruido()) {
+            partida.setEstado(EstadoPartida.FINALIZADA);
+            partida.setGanador(Equipo.AEREO);
+            partida.setMotivoFin(MotivoFinPartida.PORTA_DESTRUIDO);
+            return;
+        }
+
+        if (jugadorNaval.sinDronesVivos()) {
+            partida.setEstado(EstadoPartida.FINALIZADA);
+            partida.setGanador(Equipo.AEREO);
+            partida.setMotivoFin(MotivoFinPartida.SIN_DRONES);
+            return;
+        }
+
+        if (jugadorNaval.sinMunicion()) {
+            partida.setEstado(EstadoPartida.FINALIZADA);
+            partida.setGanador(Equipo.AEREO);
+            partida.setMotivoFin(MotivoFinPartida.SIN_MUNICION);
+            return;
+        }
+
+        // Verificar derrota en AEREO (siendo derrotado, NAVAL gana)
+        if (jugadorAereo.portaDestruido()) {
+            partida.setEstado(EstadoPartida.FINALIZADA);
+            partida.setGanador(Equipo.NAVAL);
+            partida.setMotivoFin(MotivoFinPartida.PORTA_DESTRUIDO);
+            return;
+        }
+
+        if (jugadorAereo.sinDronesVivos()) {
+            partida.setEstado(EstadoPartida.FINALIZADA);
+            partida.setGanador(Equipo.NAVAL);
+            partida.setMotivoFin(MotivoFinPartida.SIN_DRONES);
+            return;
+        }
+
+        if (jugadorAereo.sinMunicion()) {
+            partida.setEstado(EstadoPartida.FINALIZADA);
+            partida.setGanador(Equipo.NAVAL);
+            partida.setMotivoFin(MotivoFinPartida.SIN_MUNICION);
+            return;
         }
     }
 
@@ -926,8 +1016,16 @@ public class ServicioPartida {
             Integer vidaRestante = dronObjetivoVivo.estaVivo() ? dronObjetivoVivo.getVida() : 0;
             jugador.marcarDisparoRealizado();
             avanzarTurnoSiAccionCompleta(partida, jugador);
+            
+            // Evaluar fin de partida
+            evaluarFinPartidaYActualizar(partida);
             dao.save(partida);
-            return new ShootResponse(true, "OK", resultado, "DRON", dronDispara.getMunicion(), vidaRestante, null, proyectil.name());
+            
+            // Construir respuesta con info de fin de partida si aplica
+            String ganadorStr = partida.getGanador() != null ? partida.getGanador().name() : null;
+            String motivoStr = partida.getMotivoFin() != null ? partida.getMotivoFin().name() : null;
+            return new ShootResponse(true, "OK", resultado, "DRON", dronDispara.getMunicion(), vidaRestante, null,
+                    proyectil.name(), partida.getEstado() == EstadoPartida.FINALIZADA, ganadorStr, motivoStr);
         }
 
         if (portaObjetivo != null) {
@@ -937,15 +1035,31 @@ public class ServicioPartida {
                 Integer impactosRestantes = portaObjetivo.getImpactosRestantes();
                 jugador.marcarDisparoRealizado();
                 avanzarTurnoSiAccionCompleta(partida, jugador);
+                
+                // Evaluar fin de partida
+                evaluarFinPartidaYActualizar(partida);
                 dao.save(partida);
-                return new ShootResponse(true, "OK", resultado, "PORTA", dronDispara.getMunicion(), null, impactosRestantes, proyectil.name());
+                
+                // Construir respuesta con info de fin de partida si aplica
+                String ganadorStr = partida.getGanador() != null ? partida.getGanador().name() : null;
+                String motivoStr = partida.getMotivoFin() != null ? partida.getMotivoFin().name() : null;
+                return new ShootResponse(true, "OK", resultado, "PORTA", dronDispara.getMunicion(), null, impactosRestantes,
+                        proyectil.name(), partida.getEstado() == EstadoPartida.FINALIZADA, ganadorStr, motivoStr);
             } else {
                 // Arma no compatible contra esta porta (MISS)
                 String resultado = "MISS";
                 jugador.marcarDisparoRealizado();
                 avanzarTurnoSiAccionCompleta(partida, jugador);
+                
+                // Evaluar fin de partida
+                evaluarFinPartidaYActualizar(partida);
                 dao.save(partida);
-                return new ShootResponse(true, "OK", resultado, "PORTA", dronDispara.getMunicion(), null, null, proyectil.name());
+                
+                // Construir respuesta con info de fin de partida si aplica
+                String ganadorStr = partida.getGanador() != null ? partida.getGanador().name() : null;
+                String motivoStr = partida.getMotivoFin() != null ? partida.getMotivoFin().name() : null;
+                return new ShootResponse(true, "OK", resultado, "PORTA", dronDispara.getMunicion(), null, null,
+                        proyectil.name(), partida.getEstado() == EstadoPartida.FINALIZADA, ganadorStr, motivoStr);
             }
         }
 
@@ -1104,6 +1218,9 @@ public class ServicioPartida {
         public final boolean esMiTurno;
         public final int segundosRestantesTurno;
         public final int duracionTurnoSegundos;
+        public final boolean partidaFinalizada;  // Si la partida ha finalizado
+        public final String ganador;              // "NAVAL" o "AEREO" (null si no finalizó)
+        public final String motivoFin;            // "PORTA_DESTRUIDO", "SIN_DRONES", "SIN_MUNICION" (null si no finalizó)
 
         public TurnoEstadoResponse(String idPartida,
                                    String estadoPartida,
@@ -1114,6 +1231,22 @@ public class ServicioPartida {
                                    boolean esMiTurno,
                                    int segundosRestantesTurno,
                                    int duracionTurnoSegundos) {
+            this(idPartida, estadoPartida, turnoDe, numeroTurno, equipo, numeroJugador, esMiTurno,
+                    segundosRestantesTurno, duracionTurnoSegundos, false, null, null);
+        }
+
+        public TurnoEstadoResponse(String idPartida,
+                                   String estadoPartida,
+                                   String turnoDe,
+                                   int numeroTurno,
+                                   String equipo,
+                                   int numeroJugador,
+                                   boolean esMiTurno,
+                                   int segundosRestantesTurno,
+                                   int duracionTurnoSegundos,
+                                   boolean partidaFinalizada,
+                                   String ganador,
+                                   String motivoFin) {
             this.idPartida = idPartida;
             this.estadoPartida = estadoPartida;
             this.turnoDe = turnoDe;
@@ -1123,6 +1256,9 @@ public class ServicioPartida {
             this.esMiTurno = esMiTurno;
             this.segundosRestantesTurno = segundosRestantesTurno;
             this.duracionTurnoSegundos = duracionTurnoSegundos;
+            this.partidaFinalizada = partidaFinalizada;
+            this.ganador = ganador;
+            this.motivoFin = motivoFin;
         }
     }
 

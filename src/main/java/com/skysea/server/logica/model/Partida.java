@@ -18,6 +18,9 @@ public class Partida {
     private Equipo turnoDe;
     private long turnoInicioEpochMs;
 
+    private Equipo ganador;                 // Equipo ganador (puede ser null si no ha finalizado)
+    private MotivoFinPartida motivoFin;     // Motivo por el cual finalizó (puede ser null si no ha finalizado)
+
     public Partida() {
         this.idPartida = UUID.randomUUID().toString();
         this.estado = EstadoPartida.ESPERANDO_RIVAL;
@@ -159,5 +162,23 @@ public class Partida {
             return 0;
         }
         return (int) ((restantesMs + 999L) / 1000L);
+    }
+
+    // ----- Getters/Setters para fin de partida -----
+
+    public Equipo getGanador() {
+        return ganador;
+    }
+
+    public void setGanador(Equipo ganador) {
+        this.ganador = ganador;
+    }
+
+    public MotivoFinPartida getMotivoFin() {
+        return motivoFin;
+    }
+
+    public void setMotivoFin(MotivoFinPartida motivoFin) {
+        this.motivoFin = motivoFin;
     }
 }
