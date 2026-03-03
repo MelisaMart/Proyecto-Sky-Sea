@@ -1,11 +1,15 @@
 (function (global) {
+  // ============================================================================
+  // CONFIGURACIONES DE ATAQUES - 7 CASOS CUBIERTOS
+  // ============================================================================
+
   const ATAQUES = {
     DronNavalVsDronAereo: {
       attacker: { tex: "dronNaval", pos: "rightTop", scale: "dron" },
       target: { tex: "dronAereoSinBomba", pos: "leftBot", scale: "dron" },
       attack: { type: "missile", delay: 650, flightMs: 950, speed: 560, hitPoint: "target" },
       hit: { kind: "destroy", endR: 240 },
-      next: "DronNavalVsPortaAereoImpacto"
+      label: "Misil Naval → Dron Aéreo (DESTRUCCIÓN)"
     },
 
     DronNavalVsPortaAereoImpacto: {
@@ -13,7 +17,7 @@
       target: { tex: "portaAereo", pos: "ship", scale: "porta" },
       attack: { type: "missile", delay: 650, flightMs: 950, speed: 560, hitPoint: "ship" },
       hit: { kind: "damage", endR: 230 },
-      next: "DronNavalVsPortaAereoDestruccion"
+      label: "Misil Naval → Porta Aéreo (IMPACTO)"
     },
 
     DronNavalVsPortaAereoDestruccion: {
@@ -21,7 +25,7 @@
       target: { tex: "portaAereo", pos: "ship", scale: "porta" },
       attack: { type: "missile", delay: 800, flightMs: 1000, speed: 560, hitPoint: "ship" },
       hit: { kind: "destroy", endR: 280 },
-      next: "DronAereoVsDronNavalImpacto"
+      label: "Misil Naval → Porta Aéreo (DESTRUCCIÓN)"
     },
 
     DronAereoVsDronNavalImpacto: {
@@ -29,7 +33,7 @@
       target: { tex: "dronNavalInvertido", pos: "leftBot", scale: "dron" },
       attack: { type: "bomb", delay: 650, flightMs: 650, hitOffset: { x: 0.02, y: 0.01 } },
       hit: { kind: "damage", endR: 220 },
-      next: "DronAereoVsDronNavalDestruccion"
+      label: "Bomba Aérea → Dron Naval (IMPACTO)"
     },
 
     DronAereoVsDronNavalDestruccion: {
@@ -37,7 +41,7 @@
       target: { tex: "dronNavalInvertido", pos: "leftBot", scale: "dron" },
       attack: { type: "bomb", delay: 650, flightMs: 650, hitOffset: { x: 0.02, y: 0.01 } },
       hit: { kind: "destroy", endR: 250 },
-      next: "DronAereoVsPortaNavalImpacto"
+      label: "Bomba Aérea → Dron Naval (DESTRUCCIÓN - 2do impacto)"
     },
 
     DronAereoVsPortaNavalImpacto: {
@@ -45,7 +49,7 @@
       target: { tex: "portaNaval", pos: "ship", scale: "porta" },
       attack: { type: "bomb", delay: 650, flightMs: 650, hitPoint: "ship" },
       hit: { kind: "damage", endR: 240 },
-      next: "DronAereoVsPortaNavalDestruccion"
+      label: "Bomba Aérea → Porta Naval (IMPACTO)"
     },
 
     DronAereoVsPortaNavalDestruccion: {
@@ -53,37 +57,13 @@
       target: { tex: "portaNaval", pos: "ship", scale: "porta" },
       attack: { type: "bomb", delay: 650, flightMs: 650, hitPoint: "ship" },
       hit: { kind: "destroy", endR: 300 },
-      next: null
+      label: "Bomba Aérea → Porta Naval (DESTRUCCIÓN)"
     }
   };
 
-  const ATTACK_KEY_BY_EVENT = {
-    "missile|dronnaval|dronaereo|destroy": "DronNavalVsDronAereo",
-    "missile|dronnaval|dronaereo|damage": "DronNavalVsDronAereo",
-    "missile|dronnaval|portaaereo|damage": "DronNavalVsPortaAereoImpacto",
-    "missile|dronnaval|portaaereo|destroy": "DronNavalVsPortaAereoDestruccion",
-    "bomb|dronaereo|dronnaval|damage": "DronAereoVsDronNavalImpacto",
-    "bomb|dronaereo|dronnaval|destroy": "DronAereoVsDronNavalDestruccion",
-    "bomb|dronaereo|portanaval|damage": "DronAereoVsPortaNavalImpacto",
-    "bomb|dronaereo|portanaval|destroy": "DronAereoVsPortaNavalDestruccion"
-  };
-
-  const ATTACK_SEQUENCE_RULES = {
-    "missile|dronnaval|portaaereo": {
-      impactKey: "DronNavalVsPortaAereoImpacto",
-      destroyKey: "DronNavalVsPortaAereoDestruccion",
-      destroyOnHit: 3
-    },
-    "bomb|dronaereo|portanaval": {
-      impactKey: "DronAereoVsPortaNavalImpacto",
-      destroyKey: "DronAereoVsPortaNavalDestruccion",
-      destroyOnHit: 6
-    }
-  };
-
-  const attackSequenceCounters = new Map();
-  const attackSequenceLastTokenByRoute = new Map();
-
+  // ============================================================================
+  // NORMALIZADORES
+  // ============================================================================
   function normalizeToken(value) {
     return String(value ?? "")
       .trim()
@@ -91,28 +71,73 @@
       .replace(/[\s_\-]/g, "");
   }
 
-  function normalizeWeapon(value) {
-    const token = normalizeToken(value);
-    if (token === "misil" || token === "missile") return "missile";
-    if (token === "bomba" || token === "bomb") return "bomb";
-    return token;
-  }
+ function normalizeWeapon(value) {
+  const token = normalizeToken(value);
+
+  // Misil
+  if (
+    token === "misil" || token === "missile" || token === "rocket" ||
+    token === "misl" || token === "msl"
+  ) return "missile";
+
+  // Bomba
+  if (
+    token === "bomba" || token === "bomb" || token === "bombs" ||
+    token === "explosive" || token === "granada"
+  ) return "bomb";
+
+  return token;
+}
 
   function normalizeAttacker(value) {
-    const token = normalizeToken(value);
-    if (token === "naval" || token === "dronnaval") return "dronnaval";
-    if (token === "aereo" || token === "dronaereo") return "dronaereo";
-    return token;
-  }
+  const token = normalizeToken(value);
+
+  // Naval
+  if (
+    token === "naval" || token === "dronnaval" || token === "navy" ||
+    token === "sea" || token === "mar" || token === "barco" ||
+    token.includes("naval") || token.includes("navy")
+  ) return "dronnaval";
+
+  // Aéreo
+  if (
+    token === "aereo" || token === "dronaereo" || token === "air" ||
+    token === "aerial" || token === "sky" || token === "aire" ||
+    token.includes("aereo") || token.includes("air")
+  ) return "dronaereo";
+
+  return token;
+}
 
   function normalizeTarget(value) {
-    const token = normalizeToken(value);
-    if (token === "dronnaval") return "dronnaval";
-    if (token === "dronaereo") return "dronaereo";
-    if (token === "portanaval") return "portanaval";
-    if (token === "portaaereo") return "portaaereo";
-    return token;
-  }
+  const token = normalizeToken(value);
+
+  // 1) PORTAS PRIMERO (para que "portaNaval" no caiga como "dronnaval")
+  if (
+    token === "portanaval" || token === "porta_naval" || token === "porta-nav" ||
+    token.includes("portanaval") ||
+    (token.includes("porta") && (token.includes("naval") || token.includes("navy") || token.includes("mar")))
+  ) return "portanaval";
+
+  if (
+    token === "portaaereo" || token === "porta_aereo" || token === "porta-air" ||
+    token.includes("portaaereo") ||
+    (token.includes("porta") && (token.includes("aereo") || token.includes("air") || token.includes("aerial") || token.includes("sky")))
+  ) return "portaaereo";
+
+  // 2) DRONES DESPUÉS
+  if (
+    token === "dronnaval" || token === "naval" || token === "navy" ||
+    token.includes("dronnaval") || token.includes("naval") || token.includes("navy")
+  ) return "dronnaval";
+
+  if (
+    token === "dronaereo" || token === "aereo" || token === "air" || token === "aerial" ||
+    token.includes("dronaereo") || token.includes("aereo") || token.includes("air")
+  ) return "dronaereo";
+
+  return token;
+}
 
   function normalizeResult(value) {
     const token = normalizeToken(value);
@@ -121,79 +146,110 @@
     return token;
   }
 
-  function getNormalizedRoute(event) {
-    return {
-      weapon: normalizeWeapon(event?.weapon ?? event?.tipoArma ?? event?.attackType ?? event?.attack?.type),
-      attacker: normalizeAttacker(event?.attackerType ?? event?.attacker ?? event?.atacante ?? event?.attackerUnit),
-      target: normalizeTarget(event?.targetType ?? event?.target ?? event?.objetivo ?? event?.targetUnit),
-      result: normalizeResult(event?.result ?? event?.outcome ?? event?.resultado ?? event?.hitKind ?? event?.hit?.kind)
+  // ============================================================================
+  // EVENT → KEY
+  // ============================================================================
+  function parseEvent(event) {
+  const e = event ?? {};
+
+  // helpers: toma el primer valor no vacío
+  const pick = (...vals) => {
+    for (const v of vals) {
+      if (v !== null && v !== undefined && String(v).trim() !== "") return v;
+    }
+    return null;
+  };
+
+  // arma: buscar en varios lugares
+  const rawWeapon = pick(
+    e.weapon, e.tipoArma, e.attackType, e.attack?.type, e.arma, e.proyectil, e.disparo?.tipo
+  );
+
+  // atacante: buscar en varios lugares
+  const rawAttacker = pick(
+    e.attackerType, e.attacker, e.atacante, e.attackerUnit,
+    e.tipoAtacante, e.unidadAtacante?.tipo, e.unidadAtacante,
+    e.droneTypeAttacker, e.tipoDronAtacante, e.equipoAtacante
+  );
+
+  // objetivo/target: buscar en varios lugares
+  const rawTarget = pick(
+    e.targetType, e.target, e.objetivo, e.objective, e.targetUnit,
+    e.tipoObjetivo, e.unidadObjetivo?.tipo, e.unidadObjetivo,
+    e.droneTypeTarget, e.tipoDronObjetivo, e.equipoObjetivo
+  );
+
+  // resultado: buscar en varios lugares
+  const rawResult = pick(
+    e.result, e.outcome, e.resultado, e.hitKind, e.hit?.kind, e.impacto?.tipo
+  );
+
+  return {
+    weapon: normalizeWeapon(rawWeapon),
+    attacker: normalizeAttacker(rawAttacker),
+    target: normalizeTarget(rawTarget),
+    result: normalizeResult(rawResult),
+    remainingHealth: pick(e.remainingHealth, e.health, e.hp, e.vidaRestante, e.vida)
+  };
+}
+
+  function decidirResultado(weapon, attacker, target, result, remainingHealth) {
+    if (result) return result;
+
+    if (weapon === "missile" && target === "dronaereo") return "destroy";
+
+    if (weapon === "bomb" && target === "dronnaval") {
+      // si no te pasan hp del dron naval, asumimos impacto
+      return "damage";
+    }
+
+    if ((target === "portaaereo" || target === "portanaval") && remainingHealth !== null && remainingHealth !== undefined) {
+      return remainingHealth > 0 ? "damage" : "destroy";
+    }
+
+    return "damage";
+  }
+
+  function buildAttackKey(event, opts = {}) {
+    const ctx = opts.diaContext ?? "buildAttackKey";
+
+    if (!event) {
+      console.error(`[${ctx}] evento nulo`);
+      return null;
+    }
+
+    const parsed = parseEvent(event);
+    const result = decidirResultado(parsed.weapon, parsed.attacker, parsed.target, parsed.result, parsed.remainingHealth);
+
+    const routeStr = `${parsed.weapon}|${parsed.attacker}|${parsed.target}|${result}`;
+
+    const mapeo = {
+      "missile|dronnaval|dronaereo|destroy": "DronNavalVsDronAereo",
+      "missile|dronnaval|dronaereo|damage": "DronNavalVsDronAereo",
+
+      "missile|dronnaval|portaaereo|damage": "DronNavalVsPortaAereoImpacto",
+      "missile|dronnaval|portaaereo|destroy": "DronNavalVsPortaAereoDestruccion",
+
+      "bomb|dronaereo|dronnaval|damage": "DronAereoVsDronNavalImpacto",
+      "bomb|dronaereo|dronnaval|destroy": "DronAereoVsDronNavalDestruccion",
+
+      "bomb|dronaereo|portanaval|damage": "DronAereoVsPortaNavalImpacto",
+      "bomb|dronaereo|portanaval|destroy": "DronAereoVsPortaNavalDestruccion"
     };
-  }
 
-  function mapShotToAttackKeyBySequence(event, opts = {}) {
-    const consume = opts.consume !== false;
-    const route = getNormalizedRoute(event);
-    const sequenceRouteKey = `${route.weapon}|${route.attacker}|${route.target}`;
-    const rule = ATTACK_SEQUENCE_RULES[sequenceRouteKey];
-
-    if (!rule) {
-      return null;
-    }
-
-    const currentHit = attackSequenceCounters.get(sequenceRouteKey) ?? 0;
-    const eventToken = event?.sequenceToken ?? null;
-    const sameEventAsLast = eventToken && attackSequenceLastTokenByRoute.get(sequenceRouteKey) === eventToken;
-    const nextHit = sameEventAsLast ? currentHit : (currentHit + 1);
-    if (consume) {
-      if (!sameEventAsLast) {
-        attackSequenceCounters.set(sequenceRouteKey, nextHit);
-      }
-      if (eventToken) {
-        attackSequenceLastTokenByRoute.set(sequenceRouteKey, eventToken);
-      }
-    }
-
-    return nextHit >= rule.destroyOnHit ? rule.destroyKey : rule.impactKey;
-  }
-
-  function mapShotToAttackKey(event) {
-    const route = getNormalizedRoute(event);
-    const weapon = route.weapon;
-    const attacker = route.attacker;
-    const target = route.target;
-    const result = route.result;
-
-    const routeKey = `${weapon}|${attacker}|${target}|${result}`;
-    const attackKey = ATTACK_KEY_BY_EVENT[routeKey];
-
+    const attackKey = mapeo[routeStr];
     if (!attackKey) {
-      console.warn("[AtaqueLateral] Evento de disparo sin mapeo:", { event, routeKey });
+      console.error(`[${ctx}] ✗ MAPEO NO ENCONTRADO:`, routeStr, { parsed, resultado_inferido: result, event });
       return null;
     }
 
-    const cfg = ATAQUES[attackKey];
-    if (!cfg) {
-      console.warn("[AtaqueLateral] attackKey mapeada sin configuración:", { attackKey, routeKey, event });
-      return null;
-    }
-
-    if (cfg.attack?.type !== weapon) {
-      console.warn("[AtaqueLateral] Desincronización tipo de arma", { attackKey, expected: cfg.attack?.type, received: weapon, event });
-      return null;
-    }
-
-    if (cfg.hit?.kind !== result) {
-      console.warn("[AtaqueLateral] Desincronización resultado de impacto", { attackKey, expected: cfg.hit?.kind, received: result, event });
-      return null;
-    }
-
+    console.log(`[${ctx}] ✓ ${routeStr} → ${attackKey}`);
     return attackKey;
   }
 
-  function buildAttackKeyFromEvent(event) {
-    return mapShotToAttackKeyBySequence(event, { consume: false }) ?? mapShotToAttackKey(event);
-  }
-
+  // ============================================================================
+  // PHASER SCENE
+  // ============================================================================
   class AtaqueLateralBase extends Phaser.Scene {
     constructor(key) {
       super(key);
@@ -224,8 +280,7 @@
       this.pos = {
         rightTop: { x: width * 0.78, y: height * 0.22 },
         ship: { x: width * 0.22, y: height * 0.72 },
-        leftBot: { x: width * 0.22, y: height * 0.72 },
-        leftMid: { x: width * 0.22, y: height * 0.58 }
+        leftBot: { x: width * 0.22, y: height * 0.72 }
       };
 
       this.flashRect = this.add.rectangle(width / 2, height / 2, width, height, 0xffffff, 0).setDepth(999);
@@ -255,13 +310,15 @@
     hitStop(ms = 45) {
       this.physics.world.pause();
       this.tweens.pauseAll();
-      this.time.timeScale = 0;
-
-      setTimeout(() => {
-        this.time.timeScale = 1;
+      this.time.delayedCall(ms, () => {
         this.tweens.resumeAll();
         this.physics.world.resume();
-      }, ms);
+      });
+    }
+
+    resumeAll() {
+      try { this.tweens.resumeAll(); } catch (e) {}
+      try { this.physics.world.resume(); } catch (e) {}
     }
 
     shake(ms = 300, intensity = 0.01) {
@@ -473,7 +530,6 @@
         loop: true,
         callback: () => {
           if (!m.active) return;
-
           const smoke = this.add.circle(m.x + 10, m.y + 4, Phaser.Math.Between(6, 10), 0x444444, 0.35)
             .setDepth(9);
 
@@ -528,12 +584,10 @@
 
   class AtaqueLateral extends AtaqueLateralBase {
     constructor() { super("AtaqueLateral"); }
+
     init(data) {
       this.attackKey = data?.key ?? data?.attackKey ?? null;
-      this.attackCfg = data?.cfg ?? null;
       this.shotEvent = data?.event ?? null;
-      this.returnSceneKey = data?.returnSceneKey ?? null;
-      this.returnSceneData = data?.returnSceneData ?? null;
       this.onFinish = typeof data?.onFinish === "function" ? data.onFinish : null;
     }
 
@@ -541,19 +595,43 @@
       this.createBase();
 
       if (!this.attackKey && this.shotEvent) {
-        this.attackKey = mapShotToAttackKeyBySequence(this.shotEvent, { consume: true }) ?? mapShotToAttackKey(this.shotEvent);
+        this.attackKey = buildAttackKey(this.shotEvent, { diaContext: "AtaqueLateral.create" });
       }
 
-      const cfg = this.attackCfg ?? ATAQUES[this.attackKey];
+      const cfg = ATAQUES[this.attackKey];
       if (!cfg) {
-        console.warn("[AtaqueLateral] No se pudo resolver configuración de ataque", {
-          attackKey: this.attackKey,
-          shotEvent: this.shotEvent
-        });
-        this.finishAttack();
+        this.mostrarError(
+          `ANIMACIÓN NO ENCONTRADA\n\nattackKey:\n${this.attackKey || "(no resuelta)"}`,
+          this.shotEvent
+        );
         return;
       }
 
+      if (!this.validarTexturas(cfg)) return;
+
+      this.ejecutarAtaque(cfg);
+    }
+
+    validarTexturas(cfg) {
+      const missing = [];
+      if (!this.textures.exists("fondo")) missing.push("fondo");
+      if (!this.textures.exists(cfg.attacker.tex)) missing.push(cfg.attacker.tex);
+      if (!this.textures.exists(cfg.target.tex)) missing.push(cfg.target.tex);
+
+      const projectileTex = cfg.attack.type === "missile" ? "misil"
+        : cfg.attack.type === "bomb" ? "bomba"
+          : null;
+
+      if (projectileTex && !this.textures.exists(projectileTex)) missing.push(projectileTex);
+
+      if (missing.length) {
+        this.mostrarError(`TEXTURAS FALTANTES:\n${missing.join(", ")}`, this.shotEvent);
+        return false;
+      }
+      return true;
+    }
+
+    ejecutarAtaque(cfg) {
       const pos = (name) => this.pos[name] ?? this.pos.leftBot;
 
       this.atacante = this.add.image(pos(cfg.attacker.pos).x, pos(cfg.attacker.pos).y, cfg.attacker.tex)
@@ -567,24 +645,13 @@
       this.time.delayedCall(cfg.attack.delay ?? 650, () => this.doAttack(cfg));
     }
 
-    resolveHitPoint(cfg) {
-      if (cfg.attack.hitPoint === "ship") return this.shipHitPoint(this.objetivo);
-      if (cfg.attack.hitOffset) {
-        return {
-          hitX: this.objetivo.x + this.scale.width * cfg.attack.hitOffset.x,
-          hitY: this.objetivo.y + this.scale.height * cfg.attack.hitOffset.y
-        };
-      }
-      return { hitX: this.objetivo.x, hitY: this.objetivo.y };
-    }
-
     doAttack(cfg) {
       const { hitX, hitY } = this.resolveHitPoint(cfg);
 
       if (cfg.attack.type === "missile") {
         const m = this.shootMissile(this.atacante, hitX, hitY, cfg.attack.speed ?? 560);
         this.time.delayedCall(cfg.attack.flightMs ?? 950, () => {
-          m.destroy();
+          if (m.active) m.destroy();
           this.applyHit(cfg, hitX, hitY);
         });
         return;
@@ -605,6 +672,17 @@
       }
     }
 
+    resolveHitPoint(cfg) {
+      if (cfg.attack.hitPoint === "ship") return this.shipHitPoint(this.objetivo);
+      if (cfg.attack.hitOffset) {
+        return {
+          hitX: this.objetivo.x + this.scale.width * cfg.attack.hitOffset.x,
+          hitY: this.objetivo.y + this.scale.height * cfg.attack.hitOffset.y
+        };
+      }
+      return { hitX: this.objetivo.x, hitY: this.objetivo.y };
+    }
+
     applyHit(cfg, hitX, hitY) {
       if (cfg.hit.kind === "damage") this.hitDamage(this.objetivo, hitX, hitY, cfg.hit);
       else this.hitDestroy(this.objetivo, hitX, hitY, cfg.hit);
@@ -612,34 +690,59 @@
       this.time.delayedCall(1200, () => this.finishAttack());
     }
 
-    finishAttack() {
-      if (this.onFinish) {
-        try {
-          this.onFinish({ attackKey: this.attackKey, shotEvent: this.shotEvent });
-        } catch (err) {
-          console.warn("[AtaqueLateral] Error en callback onFinish", err);
-        }
+    mostrarError(msg, event = null) {
+      const w = this.scale.width;
+      const h = this.scale.height;
+
+      this.add.rectangle(w / 2, h / 2, w, h, 0x1a1a1a, 0.95).setDepth(200);
+
+      this.add.text(w / 2, h / 2 - 100, msg, {
+        fontSize: "34px",
+        color: "#ff4444",
+        align: "center",
+        fontStyle: "bold",
+        wordWrap: { width: w * 0.9 }
+      }).setOrigin(0.5).setDepth(201);
+
+      if (event) {
+        const parsed = parseEvent(event);
+        const debugText =
+          `[DEBUG]\nWeapon: ${parsed.weapon}\nAttacker: ${parsed.attacker}\nTarget: ${parsed.target}\nResult: ${parsed.result}\nHP: ${parsed.remainingHealth}`;
+        this.add.text(w / 2, h / 2 + 90, debugText, {
+          fontSize: "14px",
+          color: "#eeeeee",
+          align: "center",
+          fontFamily: "monospace"
+        }).setOrigin(0.5).setDepth(201);
       }
 
-      if (this.returnSceneKey) {
-        this.scene.start(this.returnSceneKey, this.returnSceneData ?? {});
-        return;
+      console.error("[AtaqueLateral] ERROR:", msg, event);
+      this.time.delayedCall(2500, () => this.finishAttack());
+    }
+
+    finishAttack() {
+      this.resumeAll();
+
+      if (this.onFinish) {
+        try { this.onFinish({ attackKey: this.attackKey, shotEvent: this.shotEvent }); }
+        catch (err) { console.warn("[AtaqueLateral] Error en callback onFinish:", err); }
       }
 
       this.scene.stop();
     }
   }
 
+  // ============================================================================
+  // OVERLAY + QUEUE
+  // ============================================================================
+
   let overlay = null;
   let gameContainer = null;
-  let game = null;
   let playing = false;
   const queue = [];
 
   function ensureOverlay() {
-    if (overlay && gameContainer) {
-      return;
-    }
+    if (overlay && gameContainer) return;
 
     overlay = document.createElement("div");
     overlay.id = "lateral-attack-overlay";
@@ -659,49 +762,44 @@
   }
 
   function ensureGame() {
-    if (game) {
-      return game;
-    }
+    if (window.lateralAttackGameInstance) return window.lateralAttackGameInstance;
 
     if (typeof Phaser === "undefined") {
-      console.warn("[AtaqueLateral] Phaser no está disponible");
+      console.warn("[SkySeaLateral] Phaser no disponible");
       return null;
     }
 
     ensureOverlay();
 
-    game = new Phaser.Game({
+    window.lateralAttackGameInstance = new Phaser.Game({
       type: Phaser.AUTO,
       width: 1280,
       height: 720,
       parent: gameContainer,
       physics: { default: "arcade" },
       scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-      scene: [AtaqueLateral]
+      scene: []
     });
 
-    return game;
+    return window.lateralAttackGameInstance;
   }
 
-  function playLateralAttackByKey(attackKey, opts = {}) {
-    return new Promise((resolve) => {
-      queue.push({ attackKey, event: opts.event, resolve });
-      processQueue();
-    });
+  function startFreshScene(phaserGame, data) {
+    const key = "AtaqueLateral";
+
+    // CLAVE: remover y volver a crear la escena cada vez
+    if (phaserGame.scene.getScene(key)) {
+      try { phaserGame.scene.stop(key); } catch (e) {}
+      try { phaserGame.scene.remove(key); } catch (e) {}
+    }
+
+    phaserGame.scene.add(key, AtaqueLateral, true, data);
   }
 
   function processQueue() {
     if (playing) return;
     const nextItem = queue.shift();
     if (!nextItem) return;
-
-    const cfg = ATAQUES[nextItem.attackKey];
-    if (!cfg) {
-      console.warn("[AtaqueLateral] attackKey inexistente:", nextItem.attackKey);
-      nextItem.resolve(false);
-      processQueue();
-      return;
-    }
 
     ensureOverlay();
     overlay.style.display = "block";
@@ -710,12 +808,9 @@
     if (!phaserGame) {
       overlay.style.display = "none";
       nextItem.resolve(false);
-      processQueue();
+      playing = false;
+      setTimeout(() => processQueue(), 100);
       return;
-    }
-
-    if (phaserGame.scale && typeof phaserGame.scale.refresh === "function") {
-      phaserGame.scale.refresh();
     }
 
     playing = true;
@@ -727,47 +822,66 @@
       overlay.style.display = "none";
       playing = false;
       nextItem.resolve(ok);
-      processQueue();
+      setTimeout(() => processQueue(), 150);
     };
 
     const failSafe = setTimeout(() => {
-      console.warn("[AtaqueLateral] Timeout de animación lateral, se cierra overlay para evitar pantalla negra", {
-        attackKey: nextItem.attackKey
-      });
+      console.warn("[SkySeaLateral] TIMEOUT: cierre forzado para evitar pantalla negra");
       finish(false);
     }, 9000);
 
     try {
-      phaserGame.scene.start("AtaqueLateral", {
+      console.log(`[SkySeaLateral] Iniciando escena: ${nextItem.attackKey}`);
+      startFreshScene(phaserGame, {
         key: nextItem.attackKey,
         event: nextItem.event,
         onFinish: () => {
           clearTimeout(failSafe);
+          console.log(`[SkySeaLateral] ✓ Animación completada: ${nextItem.attackKey}`);
           finish(true);
         }
       });
     } catch (error) {
       clearTimeout(failSafe);
-      console.warn("[AtaqueLateral] Error al iniciar escena lateral", error);
+      console.error("[SkySeaLateral] Error iniciando escena:", error, nextItem.attackKey);
       finish(false);
     }
   }
 
+  // ============================================================================
+  // API PÚBLICA
+  // ============================================================================
   function playShotEvent(event) {
-    const attackKey = mapShotToAttackKeyBySequence(event, { consume: true }) ?? mapShotToAttackKey(event);
+    if (!event) {
+      console.error("[SkySeaLateral] playShotEvent: evento nulo");
+      return Promise.resolve(false);
+    }
+
+    const attackKey = buildAttackKey(event, { diaContext: "playShotEvent" });
     if (!attackKey) {
+      console.warn("[SkySeaLateral] No se pudo resolver animación para:", event);
       return Promise.resolve(false);
     }
 
     return playLateralAttackByKey(attackKey, { event });
   }
 
+  function playLateralAttackByKey(attackKey, opts = {}) {
+    return new Promise((resolve) => {
+      queue.push({ attackKey, event: opts.event, resolve });
+      processQueue();
+    });
+  }
+
   global.SkySeaLateral = {
-    ATAQUES,
-    ATTACK_KEY_BY_EVENT,
-    mapShotToAttackKey,
-    buildAttackKeyFromEvent,
     playShotEvent,
-    playLateralAttackByKey
+    playLateralAttackByKey,
+    buildAttackKey,
+    parseEvent,
+    ATAQUES,
+    _getQueue: () => [...queue],
+    _isPlaying: () => playing
   };
+
+  console.log("[SkySeaLateral] ✓ Módulo cargado. Sistema de vista lateral lista.");
 })(window);

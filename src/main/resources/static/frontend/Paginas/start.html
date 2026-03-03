@@ -569,6 +569,63 @@
                 if (data.ok) {
                   if (btnDisparar) btnDisparar.disabled = true;
                   exitShootMode();
+
+                  // === DISPARAR ANIMACIÓN LATERAL SI HAY HIT ===
+                  if (data.resultado === "HIT" && selectedDron && typeof SkySeaLateral !== 'undefined') {
+                    try {
+                      // Mapear tipo de proyectil
+                      const weapon = data.tipoProyectilDisparo === "MISIL" ? "missile" : "bomb";
+                      
+                      // Mapear atacante basado en selectedDron
+                      let attacker = "dronnaval"; // default
+                      if (selectedDron.tipo === "DRON_AEREO") {
+                        attacker = "dronaereo";
+                      }
+
+                      // Mapear objetivo (data.objetivo es "DRON" o "PORTA" o "NADA")
+                      let target = null;
+                      if (data.objetivo === "DRON") {
+                        // Si es bomba y atacante es aéreo → dron naval
+                        // Si es misil y atacante es naval → dron aéreo
+                        target = weapon === "bomb" ? "dronnaval" : "dronaereo";
+                      } else if (data.objetivo === "PORTA") {
+                        // Porta aéreo recibe misiles, porta naval recibe bombas
+                        target = weapon === "bomb" ? "portanaval" : "portaaereo";
+                      }
+
+                      if (target) {
+                        // Inferir si es destroy o damage
+                        let result = "damage"; // default
+                        if (data.objetivo === "DRON") {
+                          // Dron aéreo muere con 1 misil, dron naval con 2 bombas
+                          if (weapon === "missile" && target === "dronaereo") {
+                            result = "destroy"; // dron aéreo destruido por 1 misil
+                          } else if (weapon === "bomb" && target === "dronnaval" && data.vidaObjetivo === 0) {
+                            result = "destroy"; // 2do impacto
+                          }
+                        } else if (data.objetivo === "PORTA") {
+                          // Si impactosRestantesPorta es 0 o null, es destrucción
+                          if (data.impactosRestantesPorta === 0 || (data.impactosRestantesPorta === null && data.resultado === "HIT")) {
+                            result = "destroy";
+                          }
+                        }
+
+                        const evento = {
+                          weapon,
+                          attacker,
+                          target,
+                          result,
+                          remainingHealth: data.impactosRestantesPorta !== undefined ? data.impactosRestantesPorta : null
+                        };
+
+                        console.log("[Disparo] Lanzando animación:", evento);
+                        await SkySeaLateral.playShotEvent(evento);
+                      }
+                    } catch (errAnim) {
+                      console.warn("[Disparo] Error al reproducir animación lateral:", errAnim);
+                    }
+                  }
+
                   await refreshPartidaState();
                 } else {
                   alert('Disparo inválido: ' + (data.estado || 'ERROR'));
@@ -1298,6 +1355,7 @@
         }
         celdaDestino.dataset.dronId = dron.id;
         celdaDestino.dataset.dronEquipo = dron.equipo || '';
+        celdaDestino.dataset.dronTipo = dron.tipo || ''; // ← AGREGAR ESTA
         idsVivos.add(dron.id);
 
         let img = celdaDestino.querySelector('img.elemento-formacion');
@@ -1428,7 +1486,8 @@
                   id: dronId,
                   fila: parseInt(celda.dataset.fila),
                   col: parseInt(celda.dataset.col),
-                  cell: celda
+                  cell: celda,
+                  tipo: celda.dataset.dronTipo || null // <-- AGREGAR
                 };
                 // activar botón mover y cancelar cualquier modo previo
                 exitMoveMode();
@@ -1496,5 +1555,10 @@
     refreshPartidaState();
     refreshIntervalId = setInterval(refreshPartidaState, 1000);
   </script>
+
+  <!-- Phaser 3 para animaciones laterales -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
+  <!-- Sistema de vista lateral de ataques -->
+  <script src="/frontend/js/lateral-attack.js"></script>
 </body>
 </html>
