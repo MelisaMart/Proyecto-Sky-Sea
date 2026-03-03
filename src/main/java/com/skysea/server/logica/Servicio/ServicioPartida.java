@@ -852,44 +852,50 @@ public class ServicioPartida {
             return;
         }
 
-        // Verificar derrota en NAVAL (siendo derrotado, AEREO gana)
-        if (jugadorNaval.portaDestruido()) {
+        // calcular condiciones de derrota para ambos equipos primero
+        boolean navalPorta = jugadorNaval.portaDestruido();
+        boolean aereoPorta = jugadorAereo.portaDestruido();
+        boolean navalSinDrones = jugadorNaval.sinDronesVivos();
+        boolean aereoSinDrones = jugadorAereo.sinDronesVivos();
+        boolean navalSinMun = jugadorNaval.sinMunicion();
+        boolean aereoSinMun = jugadorAereo.sinMunicion();
+
+        // === prioridad 1: porta destruido ===
+        if (navalPorta) {
             partida.setEstado(EstadoPartida.FINALIZADA);
             partida.setGanador(Equipo.AEREO);
             partida.setMotivoFin(MotivoFinPartida.PORTA_DESTRUIDO);
             return;
         }
+        if (aereoPorta) {
+            partida.setEstado(EstadoPartida.FINALIZADA);
+            partida.setGanador(Equipo.NAVAL);
+            partida.setMotivoFin(MotivoFinPartida.PORTA_DESTRUIDO);
+            return;
+        }
 
-        if (jugadorNaval.sinDronesVivos()) {
+        // === prioridad 2: sin drones vivos ===
+        if (navalSinDrones) {
             partida.setEstado(EstadoPartida.FINALIZADA);
             partida.setGanador(Equipo.AEREO);
             partida.setMotivoFin(MotivoFinPartida.SIN_DRONES);
             return;
         }
+        if (aereoSinDrones) {
+            partida.setEstado(EstadoPartida.FINALIZADA);
+            partida.setGanador(Equipo.NAVAL);
+            partida.setMotivoFin(MotivoFinPartida.SIN_DRONES);
+            return;
+        }
 
-        if (jugadorNaval.sinMunicion()) {
+        // === prioridad 3: sin munición (solo si nadie perdió drones ni porta) ===
+        if (navalSinMun) {
             partida.setEstado(EstadoPartida.FINALIZADA);
             partida.setGanador(Equipo.AEREO);
             partida.setMotivoFin(MotivoFinPartida.SIN_MUNICION);
             return;
         }
-
-        // Verificar derrota en AEREO (siendo derrotado, NAVAL gana)
-        if (jugadorAereo.portaDestruido()) {
-            partida.setEstado(EstadoPartida.FINALIZADA);
-            partida.setGanador(Equipo.NAVAL);
-            partida.setMotivoFin(MotivoFinPartida.PORTA_DESTRUIDO);
-            return;
-        }
-
-        if (jugadorAereo.sinDronesVivos()) {
-            partida.setEstado(EstadoPartida.FINALIZADA);
-            partida.setGanador(Equipo.NAVAL);
-            partida.setMotivoFin(MotivoFinPartida.SIN_DRONES);
-            return;
-        }
-
-        if (jugadorAereo.sinMunicion()) {
+        if (aereoSinMun) {
             partida.setEstado(EstadoPartida.FINALIZADA);
             partida.setGanador(Equipo.NAVAL);
             partida.setMotivoFin(MotivoFinPartida.SIN_MUNICION);
