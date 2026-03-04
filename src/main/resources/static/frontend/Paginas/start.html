@@ -93,6 +93,13 @@
   <!-- Pie de página reservado -->
   <footer class="footer"></footer>
 
+  <!-- Cartel de aviso al recibir ataque -->
+  <div id="avisoAtaque" class="aviso-ataque" aria-live="polite" aria-atomic="true" role="alert">
+    <div class="aviso-contenido">
+      <p id="avisoTexto" class="aviso-texto"></p>
+    </div>
+  </div>
+
   <div id="errorModal" class="modal-overlay error" aria-hidden="true" role="dialog" aria-modal="true">
     <div class="modal-box error-box">
       <p class="error-title">ERROR:</p>
@@ -410,6 +417,10 @@
     let yaEstuvoEnJuego = false;
     let abandonoNotificado = false;
     let refreshIntervalId = null;
+
+    // Variables para detectar daño recibido
+    let estadoUnitadesAnterior = null;
+    let ultimoEventoDanio = null;
 
     function detenerActualizacionPartida() {
       if (refreshIntervalId !== null) {
@@ -945,6 +956,97 @@
       if (hudIconPortaEnemigo) hudIconPortaEnemigo.src = iconosEnemigo.porta;
     }
 
+    function mostrarAvisoAtaque(mensaje) {
+      const avisoElement = document.getElementById('avisoAtaque');
+      const avisoTexto = document.getElementById('avisoTexto');
+      
+      if (!avisoElement || !avisoTexto) return;
+      
+      avisoTexto.textContent = mensaje;
+      avisoElement.classList.add('activo');
+      
+      // Auto-ocultar después de 2.5 segundos
+      setTimeout(() => {
+        avisoElement.classList.remove('activo');
+      }, 2500);
+    }
+
+    function detectarYMostrarDanioRecibido(board) {
+      if (!board || !estadoUnitadesAnterior) return;
+      
+      const miEquipo = board.miEquipo || getSessionValue('equipoAsignado') || 'NAVAL';
+      
+      // Obtener estado actual
+      const dronesActuales = (board.drones || []).filter(d => d.equipo === miEquipo && !d.destruido);
+      const portaActual = (board.portas || []).find(p => p.equipo === miEquipo);
+      
+      const vidaPortaActual = portaActual ? portaActual.impactosRestantes : 0;
+      const dronesActivosActuales = dronesActuales.length;
+      
+      // Comparar con estado anterior
+      const vidaPortaAnterior = estadoUnitadesAnterior.vidaPorta;
+      const dronesActivosAnteriores = estadoUnitadesAnterior.dronesActivos;
+      
+      // Detectar si la porta fue dañada o destruida
+      if (vidaPortaAnterior > 0 && vidaPortaActual < vidaPortaAnterior) {
+        const eventoId = `porta-${ultimoNumeroTurno}-${vidaPortaActual}`;
+        if (ultimoEventoDanio !== eventoId) {
+          ultimoEventoDanio = eventoId;
+          if (vidaPortaActual === 0) {
+            mostrarAvisoAtaque('¡Tu porta fue destruida!');
+          } else {
+            mostrarAvisoAtaque('¡Tu porta fue dañada!');
+          }
+          return;
+        }
+      }
+      
+      // Detectar si drones fueron destruidos
+      if (dronesActivosAnteriores > 0 && dronesActivosActuales < dronesActivosAnteriores) {
+        const eventoId = `drones-${ultimoNumeroTurno}-${dronesActivosActuales}`;
+        if (ultimoEventoDanio !== eventoId) {
+          ultimoEventoDanio = eventoId;
+          mostrarAvisoAtaque('¡Tu dron fue destruido!');
+          return;
+        }
+      }
+      
+      // Detectar si drones fueron dañados (sin ser destruidos)
+      if (dronesActuales.length > 0 && dronesActivosAnteriores > 0) {
+        const dronConDanio = dronesActuales.some(d => {
+          const anteriorDron = estadoUnitadesAnterior.drones.find(a => a.id === d.id);
+          return anteriorDron && d.vida < anteriorDron.vida;
+        });
+        
+        if (dronConDanio) {
+          const eventoId = `danio-dron-${ultimoNumeroTurno}`;
+          if (ultimoEventoDanio !== eventoId) {
+            ultimoEventoDanio = eventoId;
+            mostrarAvisoAtaque('¡Tu dron fue dañado!');
+            return;
+          }
+        }
+      }
+    }
+
+    function capturarEstadoUnitades(board) {
+      if (!board) return;
+      
+      const miEquipo = board.miEquipo || getSessionValue('equipoAsignado') || 'NAVAL';
+      const dronesActuales = (board.drones || []).filter(d => d.equipo === miEquipo);
+      const portaActual = (board.portas || []).find(p => p.equipo === miEquipo);
+      
+      estadoUnitadesAnterior = {
+        vidaPorta: portaActual ? portaActual.impactosRestantes : 0,
+        dronesActivos: dronesActuales.filter(d => !d.destruido).length,
+        drones: dronesActuales.map(d => ({
+          id: d.id,
+          vida: d.vida,
+          destruido: d.destruido
+        }))
+      };
+    }
+
     async function apiRequest(path, method = 'GET') {
       const response = await fetch(`${API}${path}`, { method });
       const raw = await response.text();
@@ -1049,9 +1151,21 @@
 
         try {
           const board = await apiRequest(`/board?playerId=${encodeURIComponent(playerIdActual)}`);
+          
+          // Inicializar estado de unidades si es primera carga
+          if (estadoUnitadesAnterior === null) {
+            capturarEstadoUnitades(board);
+          } else {
+            // Detectar daño y mostrar aviso si lo hay
+            detectarYMostrarDanioRecibido(board);
+          }
+          
           actualizarRenderPortasDesdeBoard(board);
           actualizarRenderDronesDesdeBoard(board);
           actualizarHudInferior(board);
+          
+          // Capturar estado actual como anterior para próxima iteración
+          capturarEstadoUnitades(board);
         } catch (errBoard) {
           console.warn('No se pudo actualizar HUD inferior:', errBoard.message);
         }
