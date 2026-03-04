@@ -777,7 +777,7 @@
       height: 720,
       parent: gameContainer,
       physics: { default: "arcade" },
-      scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+      scale: { mode: Phaser.Scale.ENVELOP, autoCenter: Phaser.Scale.CENTER_BOTH },
       scene: []
     });
 
