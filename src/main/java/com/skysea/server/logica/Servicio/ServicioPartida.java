@@ -603,10 +603,9 @@ public class ServicioPartida {
         for (Dron d : jugador.getDrones()) {
             if (d.estaVivo()) {
                 dronesActivos++;
+                municionTotal += d.getMunicion(); 
             }
-            municionTotal += d.getMunicion();
         }
-
         int impactosRestantes = jugador.getPorta() != null ? jugador.getPorta().getImpactosRestantes() : 0;
         int impactosMaximos = jugador.getEquipo() == Equipo.AEREO
                 ? Reglas.IMPACTOS_PORTA_AEREO
