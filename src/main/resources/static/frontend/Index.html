@@ -62,6 +62,30 @@
     </div>
   </div>
 
+  <div id="modalModoInicio" class="modal-overlay" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal-box modal-modo-inicio">
+      <p class="modal-titulo">¿CÓMO QUIERES JUGAR?</p>
+      <div class="modal-actions modal-actions-columna">
+        <button id="btnPartidaNueva" class="game-btn" type="button">PARTIDA NUEVA</button>
+        <button id="btnReanudarPartida" class="game-btn" type="button">REANUDAR PARTIDA</button>
+      </div>
+      <div class="modal-actions">
+        <button id="cancelarModoInicio" class="game-btn" type="button">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalPartidasReanudables" class="modal-overlay" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal-box modal-reanudar">
+      <p class="modal-titulo">PARTIDAS REANUDABLES</p>
+      <div id="listaPartidasReanudables" class="lista-reanudables"></div>
+      <div class="modal-actions">
+        <button id="volverModoInicio" class="game-btn" type="button">Volver</button>
+        <button id="cancelarReanudacion" class="game-btn" type="button">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal para seleccionar equipo -->
   <div id="modalEquipo" class="modal-overlay" aria-hidden="true" role="dialog" aria-modal="true">
     <div class="modal-box modal-equipo">
@@ -151,6 +175,8 @@
       OCUPADO: 'Ya hay dos jugadores en partida. Esperá a que finalice para ingresar.',
       NOMBRE_INVALIDO: 'El nombre ingresado no es válido. Usá al menos 3 caracteres sin símbolos.',
       EQUIPO_INVALIDO: 'El equipo seleccionado no es válido. Elegí Naval o Aéreo.',
+      PARTIDA_NO_ENCONTRADA: 'No se encontró la partida seleccionada.',
+      PARTIDA_NO_REANUDABLE: 'La partida seleccionada ya no es reanudable.',
       PLAYER_NO_ENCONTRADO: 'No se encontró tu jugador en la partida actual.',
       HTTP_404: 'No se encontró el recurso solicitado en el servidor.',
       HTTP_500: 'El servidor tuvo un problema interno al procesar la acción.',
@@ -277,6 +303,7 @@
       removeSessionValue('estrategiaSeleccionada');
       removeSessionValue('numeroJugador');
       removeSessionValue('nombreUsuario');
+      removeSessionValue('origenReanudacion');
     }
 
     let nombrePendiente = '';
@@ -369,6 +396,153 @@
     const inputNombre = document.getElementById('inputNombre');
     const aceptarNombre = document.getElementById('aceptarNombre');
     const cancelarNombre = document.getElementById('cancelarNombre');
+    const modalModoInicio = document.getElementById('modalModoInicio');
+    const btnPartidaNueva = document.getElementById('btnPartidaNueva');
+    const btnReanudarPartida = document.getElementById('btnReanudarPartida');
+    const cancelarModoInicio = document.getElementById('cancelarModoInicio');
+    const modalPartidasReanudables = document.getElementById('modalPartidasReanudables');
+    const listaPartidasReanudables = document.getElementById('listaPartidasReanudables');
+    const volverModoInicio = document.getElementById('volverModoInicio');
+    const cancelarReanudacion = document.getElementById('cancelarReanudacion');
+
+    function cerrarModalModoInicio() {
+      if (!modalModoInicio) return;
+      modalModoInicio.setAttribute('aria-hidden', 'true');
+      modalModoInicio.classList.remove('activo');
+    }
+
+    function abrirModalModoInicio() {
+      if (!modalModoInicio) return;
+      modalModoInicio.setAttribute('aria-hidden', 'false');
+      modalModoInicio.classList.add('activo');
+    }
+
+    function cerrarModalPartidasReanudables() {
+      if (!modalPartidasReanudables) return;
+      modalPartidasReanudables.setAttribute('aria-hidden', 'true');
+      modalPartidasReanudables.classList.remove('activo');
+      if (listaPartidasReanudables) {
+        listaPartidasReanudables.innerHTML = '';
+      }
+    }
+
+    function abrirModalPartidasReanudables() {
+      if (!modalPartidasReanudables) return;
+      modalPartidasReanudables.setAttribute('aria-hidden', 'false');
+      modalPartidasReanudables.classList.add('activo');
+    }
+
+    async function iniciarPartidaNueva() {
+      const nombre = nombrePendiente;
+      if (!nombre) {
+        alert('Primero ingresa tu nombre.');
+        return;
+      }
+
+      const join = await apiRequest(`/join?nombre=${encodeURIComponent(nombre)}`, 'POST');
+
+      if (join.estadoPartida === 'OCUPADO') {
+        alert('Ya hay dos jugadores jugando. Debes esperar a que termine la partida.');
+        return;
+      }
+
+      if (join.estadoPartida === 'NECESITA_EQUIPO') {
+        setSessionValue('origenReanudacion', '0');
+        cerrarModalModoInicio();
+        modalEquipo.setAttribute('aria-hidden', 'false');
+        modalEquipo.classList.add('activo');
+        return;
+      }
+
+      if (join.estadoPartida === 'NOMBRE_INVALIDO') {
+        alert('El nombre ingresado no es válido.');
+        return;
+      }
+
+      setSessionValue('origenReanudacion', '0');
+      setSessionValue('nombreUsuario', join.nombre || nombre);
+      setSessionValue('playerId', join.playerId || '');
+      setSessionValue('idPartida', join.idPartida || '');
+      setSessionValue('equipoAsignado', join.equipo || '');
+      setSessionValue('equipoSeleccionado', join.equipo || '');
+      if (join.numeroJugador === 1 || join.numeroJugador === 2) {
+        setSessionValue('numeroJugador', String(join.numeroJugador));
+      }
+
+      nombrePendiente = '';
+      cerrarModalModoInicio();
+
+      if (join.equipo === 'NAVAL') {
+        abrirModalEstrategia('NAVAL');
+      } else {
+        abrirModalEstrategia('AEREO');
+      }
+    }
+
+    async function cargarPartidasReanudables() {
+      const nombre = nombrePendiente;
+      if (!nombre) {
+        alert('Primero ingresa tu nombre.');
+        return;
+      }
+
+      const data = await apiRequest(`/resumableMatches?nombre=${encodeURIComponent(nombre)}`);
+      const partidas = Array.isArray(data.partidas) ? data.partidas : [];
+
+      if (!partidas.length) {
+        alert('No hay partidas reanudables para este usuario.');
+        return;
+      }
+
+      if (listaPartidasReanudables) {
+        listaPartidasReanudables.innerHTML = '';
+        partidas.forEach((p, index) => {
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'item-reanudable';
+          item.innerHTML = `
+            <span>Partida ${index + 1}</span>
+            <span>ID: ${p.idPartida}</span>
+            <span>Estado: ${p.estadoPartida || '-'}</span>
+            <span>Equipo: ${p.equipoJugador || '-'}</span>
+            <span>Turno: ${p.turnoNumero ?? '-'}</span>
+          `;
+          item.addEventListener('click', async () => {
+            try {
+              const resume = await apiRequest(
+                `/resume?nombre=${encodeURIComponent(nombre)}&idPartida=${encodeURIComponent(p.idPartida)}`,
+                'POST'
+              );
+              if (!resume.ok) {
+                alert(resume.estado || 'No se pudo reanudar la partida.');
+                return;
+              }
+
+              setSessionValue('origenReanudacion', '1');
+              setSessionValue('nombreUsuario', resume.nombre || nombre);
+              setSessionValue('playerId', resume.playerId || '');
+              setSessionValue('idPartida', resume.idPartida || '');
+              setSessionValue('equipoAsignado', resume.equipo || '');
+              setSessionValue('equipoSeleccionado', resume.equipo || '');
+              if (resume.numeroJugador === 1 || resume.numeroJugador === 2) {
+                setSessionValue('numeroJugador', String(resume.numeroJugador));
+              }
+
+              nombrePendiente = '';
+              cerrarModalPartidasReanudables();
+              cerrarModalModoInicio();
+              window.location.href = '/frontend/Paginas/start.html';
+            } catch (error) {
+              alert(`No se pudo reanudar la partida: ${error.message}`);
+            }
+          });
+          listaPartidasReanudables.appendChild(item);
+        });
+      }
+
+      cerrarModalModoInicio();
+      abrirModalPartidasReanudables();
+    }
 
     // Verificar que todos los elementos existan antes de inicializar
     if (btnStart && modalNombre && inputNombre && aceptarNombre && cancelarNombre) {
@@ -423,44 +597,9 @@
 
         aceptarNombre.disabled = true;
         try {
-          const join = await apiRequest(`/join?nombre=${encodeURIComponent(nombre)}`, 'POST');
-
-          if (join.estadoPartida === 'OCUPADO') {
-            alert('Ya hay dos jugadores jugando. Debes esperar a que termine la partida.');
-            return;
-          }
-
-          if (join.estadoPartida === 'NECESITA_EQUIPO') {
-            nombrePendiente = nombre;
-            cerrarModalNombre();
-            modalEquipo.setAttribute('aria-hidden', 'false');
-            modalEquipo.classList.add('activo');
-            return;
-          }
-
-          if (join.estadoPartida === 'NOMBRE_INVALIDO') {
-            alert('El nombre ingresado no es válido.');
-            inputNombre.focus();
-            return;
-          }
-
-          setSessionValue('nombreUsuario', join.nombre || nombre);
-          setSessionValue('playerId', join.playerId || '');
-          setSessionValue('idPartida', join.idPartida || '');
-          setSessionValue('equipoAsignado', join.equipo || '');
-          setSessionValue('equipoSeleccionado', join.equipo || '');
-          if (join.numeroJugador === 1 || join.numeroJugador === 2) {
-            setSessionValue('numeroJugador', String(join.numeroJugador));
-          }
-
-          nombrePendiente = '';
+          nombrePendiente = nombre;
           cerrarModalNombre();
-
-          if (join.equipo === 'NAVAL') {
-            abrirModalEstrategia('NAVAL');
-          } else {
-            abrirModalEstrategia('AEREO');
-          }
+          abrirModalModoInicio();
         } catch (error) {
           alert(`No se pudo conectar con el servidor: ${error.message}`);
         } finally {
@@ -474,6 +613,53 @@
           aceptarNombre.click();
         }
       });
+
+      if (btnPartidaNueva) {
+        btnPartidaNueva.addEventListener('click', async () => {
+          try {
+            btnPartidaNueva.disabled = true;
+            await iniciarPartidaNueva();
+          } catch (error) {
+            alert(`No se pudo iniciar partida nueva: ${error.message}`);
+          } finally {
+            btnPartidaNueva.disabled = false;
+          }
+        });
+      }
+
+      if (btnReanudarPartida) {
+        btnReanudarPartida.addEventListener('click', async () => {
+          try {
+            btnReanudarPartida.disabled = true;
+            await cargarPartidasReanudables();
+          } catch (error) {
+            alert(`No se pudo cargar partidas reanudables: ${error.message}`);
+          } finally {
+            btnReanudarPartida.disabled = false;
+          }
+        });
+      }
+
+      if (cancelarModoInicio) {
+        cancelarModoInicio.addEventListener('click', () => {
+          cerrarModalModoInicio();
+          nombrePendiente = '';
+        });
+      }
+
+      if (volverModoInicio) {
+        volverModoInicio.addEventListener('click', () => {
+          cerrarModalPartidasReanudables();
+          abrirModalModoInicio();
+        });
+      }
+
+      if (cancelarReanudacion) {
+        cancelarReanudacion.addEventListener('click', () => {
+          cerrarModalPartidasReanudables();
+          nombrePendiente = '';
+        });
+      }
     }
 
     // ====== LÓGICA DEL MODAL DE SELECCIÓN DE EQUIPO ======
@@ -516,6 +702,7 @@
           setSessionValue('nombreUsuario', join.nombre || nombrePendiente);
           setSessionValue('playerId', join.playerId || '');
           setSessionValue('idPartida', join.idPartida || '');
+          setSessionValue('origenReanudacion', '0');
           setSessionValue('equipoAsignado', join.equipo || equipo);
           setSessionValue('equipoSeleccionado', join.equipo || equipo);
           if (join.numeroJugador === 1 || join.numeroJugador === 2) {

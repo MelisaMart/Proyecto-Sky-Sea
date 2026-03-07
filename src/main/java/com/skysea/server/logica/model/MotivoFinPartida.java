@@ -7,5 +7,6 @@ package com.skysea.server.logica.model;
 public enum MotivoFinPartida {
     PORTA_DESTRUIDO,    // El porta enemigo fue destruido
     SIN_DRONES,         // El equipo enemigo se quedó sin drones vivos
-    SIN_MUNICION        // El equipo enemigo se quedó sin munición total
+    SIN_MUNICION,       // El equipo enemigo se quedó sin munición total
+    ABANDONO            // Un jugador abandonó la partida
 }

@@ -72,6 +72,39 @@ public class GameController {
         return new JoinResponseDTO(r.idPartida, r.playerId, r.nombre, r.estadoPartida, r.equipo, r.numeroJugador);
     }
 
+    @GetMapping("/resumableMatches")
+    public Object listarPartidasReanudables(@RequestParam String nombre) {
+        try {
+            var partidas = servicioPartida.listarPartidasReanudables(nombre);
+            java.util.Map<String, Object> out = new java.util.HashMap<>();
+            out.put("ok", true);
+            out.put("partidas", partidas);
+            return out;
+        } catch (Exception e) {
+            return java.util.Map.of("error", e.getMessage());
+        }
+    }
+
+    @PostMapping("/resume")
+    public Object reanudarPartida(@RequestParam String nombre, @RequestParam String idPartida) {
+        try {
+            var r = servicioPartida.reanudarPartida(nombre, idPartida);
+            java.util.Map<String, Object> out = new java.util.HashMap<>();
+            out.put("ok", r.ok);
+            out.put("estado", r.estado);
+            out.put("idPartida", r.idPartida);
+            out.put("playerId", r.playerId);
+            out.put("nombre", r.nombre);
+            out.put("estadoPartida", r.estadoPartida);
+            out.put("equipo", r.equipo);
+            out.put("numeroJugador", r.numeroJugador);
+            out.put("esperandoRival", r.esperandoRival);
+            return out;
+        } catch (Exception e) {
+            return java.util.Map.of("error", e.getMessage());
+        }
+    }
+
     @GetMapping("/state2")
     public Object state2(@RequestParam String playerId) {
         try {
@@ -90,11 +123,28 @@ public class GameController {
             out.put("partidaFinalizada", estado.partidaFinalizada);
             out.put("ganador", estado.ganador);
             out.put("motivoFin", estado.motivoFin);
+            out.put("isReanudable", estado.isReanudable);
             return out;
         } catch (Exception e) {
             return java.util.Map.of(
                     "error", e.getMessage()
             );
+        }
+    }
+
+    @PostMapping("/abandon")
+    public Object abandonar(@RequestParam String playerId) {
+        try {
+            ServicioPartida.AbandonResponse r = servicioPartida.abandonarPartida(playerId);
+            java.util.Map<String, Object> out = new java.util.HashMap<>();
+            out.put("ok", r.ok);
+            out.put("estado", r.estado);
+            out.put("ganador", r.ganador);
+            out.put("motivoFin", r.motivoFin);
+            out.put("isReanudable", r.isReanudable);
+            return out;
+        } catch (Exception e) {
+            return java.util.Map.of("error", e.getMessage());
         }
     }
 

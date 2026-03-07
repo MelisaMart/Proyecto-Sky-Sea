@@ -67,6 +67,9 @@ public class PartidaEntity {
     @Column(name = "activa", nullable = false)
     private boolean activa;
 
+    @Column(name = "isReanudable")
+    private Boolean isReanudable;
+
     @OneToMany(mappedBy = "partida", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<JugadorEntity> jugadores = new ArrayList<>();
 
@@ -180,5 +183,13 @@ public class PartidaEntity {
 
     public void setJugadores(List<JugadorEntity> jugadores) {
         this.jugadores = jugadores;
+    }
+
+    public Boolean getIsReanudable() {
+        return isReanudable;
+    }
+
+    public void setIsReanudable(Boolean isReanudable) {
+        this.isReanudable = isReanudable;
     }
 }

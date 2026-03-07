@@ -45,6 +45,7 @@ public class PartidaJpaMapper {
 
         partida.setGanador(entity.getGanador() != null ? entity.getGanador() : entity.getGanadorEquipo());
         partida.setMotivoFin(entity.getMotivoFin());
+        partida.setReanudable(entity.getIsReanudable() == null || entity.getIsReanudable());
         return partida;
     }
 
@@ -59,6 +60,7 @@ public class PartidaJpaMapper {
         entity.setGanador(domain.getGanador());
         entity.setGanadorEquipo(domain.getGanador());
         entity.setMotivoFin(domain.getMotivoFin());
+        entity.setIsReanudable(domain.isReanudable());
         // Persistimos siempre como activa; la rotacion de partida la manejan reset/join.
         entity.setActiva(true);
 

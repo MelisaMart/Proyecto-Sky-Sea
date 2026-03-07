@@ -9,6 +9,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 
 @Repository
 public class MySqlPartidaDAO implements IPartidaDAO {
@@ -31,6 +33,32 @@ public class MySqlPartidaDAO implements IPartidaDAO {
                     save(nueva);
                     return nueva;
                 });
+    }
+
+    @Override
+    @Transactional
+    public synchronized Optional<Partida> loadById(String idPartida) {
+        if (idPartida == null || idPartida.isBlank()) {
+            return Optional.empty();
+        }
+        return partidaRepository.findById(idPartida).map(mapper::toDomain);
+    }
+
+    @Override
+    @Transactional
+    public synchronized List<PartidaReanudableInfo> findReanudablesByNombre(String nombreJugador) {
+        if (nombreJugador == null || nombreJugador.isBlank()) {
+            return List.of();
+        }
+        return partidaRepository.findReanudablesByNombre(nombreJugador).stream()
+                .map(p -> new PartidaReanudableInfo(
+                        p.getId(),
+                        p.getEstado() != null ? p.getEstado().name() : null,
+                        p.getEquipo() != null ? p.getEquipo().name() : null,
+                        p.getTurnoNumero(),
+                        p.getFechaCreacion() != null ? p.getFechaCreacion().toString() : null
+                ))
+                .toList();
     }
 
     @Override

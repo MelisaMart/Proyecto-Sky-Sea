@@ -20,6 +20,7 @@ public class Partida {
 
     private Equipo ganador;                 // Equipo ganador (puede ser null si no ha finalizado)
     private MotivoFinPartida motivoFin;     // Motivo por el cual finalizó (puede ser null si no ha finalizado)
+    private boolean reanudable;
 
     public Partida() {
         this(UUID.randomUUID().toString());
@@ -32,6 +33,7 @@ public class Partida {
         this.numeroTurno = 1;
         this.turnoDe = Equipo.NAVAL; // regla del doc: naval empieza
         this.turnoInicioEpochMs = System.currentTimeMillis();
+        this.reanudable = true;
     }
 
     // ----------------- Helpers de cupos -----------------
@@ -185,5 +187,13 @@ public class Partida {
 
     public void setMotivoFin(MotivoFinPartida motivoFin) {
         this.motivoFin = motivoFin;
+    }
+
+    public boolean isReanudable() {
+        return reanudable;
+    }
+
+    public void setReanudable(boolean reanudable) {
+        this.reanudable = reanudable;
     }
 }

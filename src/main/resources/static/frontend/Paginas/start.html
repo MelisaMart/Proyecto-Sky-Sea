@@ -42,6 +42,7 @@
         <button id="btnMover" class="game-btn boton-accion" type="button" disabled>MOVER</button>
         <button id="btnDisparar" class="game-btn boton-accion" type="button">DISPARAR</button>
         <button id="btnPlay" class="game-btn boton-play" type="button" aria-label="Play" title="Play"></button>
+        <button id="btnAbandonar" class="game-btn boton-accion boton-abandonar" type="button">ABANDONAR</button>
       </div>
     </div>
   </main>
@@ -123,6 +124,16 @@
     </div>
   </div>
 
+  <div id="reanudarEsperaModal" class="modal-overlay" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal-box modal-espera-rival">
+      <p class="modal-titulo">PARTIDA REANUDADA</p>
+      <p class="espera-rival-texto">Esperando al rival para continuar la partida...</p>
+      <div class="modal-actions">
+        <button id="reanudarSalirBtn" class="game-btn" type="button">Salir al menú</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const API_BASE = (window.location.protocol === 'file:')
       ? 'http://localhost:8080'
@@ -186,7 +197,22 @@
         sessionStorage.removeItem(key);
         localStorage.removeItem(key);
       });
+      removeSessionValue('origenReanudacion');
       window.location.href = '/frontend/Index.html';
+    }
+
+    function mostrarModalEsperaRival() {
+      const modal = document.getElementById('reanudarEsperaModal');
+      if (!modal) return;
+      modal.setAttribute('aria-hidden', 'false');
+      modal.classList.add('activo');
+    }
+
+    function ocultarModalEsperaRival() {
+      const modal = document.getElementById('reanudarEsperaModal');
+      if (!modal) return;
+      modal.setAttribute('aria-hidden', 'true');
+      modal.classList.remove('activo');
     }
 
     function normalizeErrorInput(input) {
@@ -310,6 +336,12 @@
             ? 'El enemigo se quedó sin munición.'
             : 'Tu equipo se quedó sin munición.';
           break;
+        case 'ABANDONO':
+          textoMotivo = '🚩 Abandono';
+          textoDetalle = esVictoria
+            ? 'Ganaste porque el rival abandonó la partida.'
+            : 'Abandonaste la partida. Tu equipo perdió por abandono.';
+          break;
       }
 
       subtitulo.textContent = textoMotivo;
@@ -333,6 +365,8 @@
       if (btnDisparar) btnDisparar.disabled = true;
       const btnPlay = document.getElementById('btnPlay');
       if (btnPlay) btnPlay.disabled = true;
+      const btnAbandonar = document.getElementById('btnAbandonar');
+      if (btnAbandonar) btnAbandonar.disabled = true;
 
       // Limpiar selecciones
       limpiarSeleccionLocal();
@@ -372,6 +406,7 @@
     const cronometroTurno = document.getElementById('cronometroTurno');
     const btnMover = document.getElementById('btnMover');
     const btnDisparar = document.getElementById('btnDisparar');
+    const btnAbandonar = document.getElementById('btnAbandonar');
     const indicadorEsperaJugador2 = document.getElementById('indicadorEsperaJugador2');
     const hudTipoTuEquipo = document.getElementById('hudTipoTuEquipo');
     const hudTipoEnemigo = document.getElementById('hudTipoEnemigo');
@@ -389,6 +424,7 @@
     const hudIconPortaEnemigo = document.getElementById('hudIconPortaEnemigo');
     const errorModal = document.getElementById('errorModal');
     const errorOk = document.getElementById('errorOk');
+    const reanudarSalirBtn = document.getElementById('reanudarSalirBtn');
 
     if (errorOk) {
       errorOk.textContent = 'OK';
@@ -410,6 +446,10 @@
         hideError();
       }
     });
+
+    if (reanudarSalirBtn) {
+      reanudarSalirBtn.addEventListener('click', salirAlInicio);
+    }
     let numeroJugadorActual = Number(getSessionValue('numeroJugador'));
     const TIEMPO_TURNO_SEGUNDOS = 30;
     let duracionTurnoSegundos = TIEMPO_TURNO_SEGUNDOS;
@@ -1075,6 +1115,30 @@
       return data || {};
     }
 
+    async function abandonarPartida() {
+      const playerIdActual = getPlayerIdActual();
+      if (!playerIdActual) {
+        alert('Jugador no identificado');
+        return;
+      }
+
+      const confirmado = window.confirm('¿Seguro que querés abandonar la partida? Vas a perder automáticamente.');
+      if (!confirmado) {
+        return;
+      }
+
+      try {
+        const data = await apiRequest(`/abandon?playerId=${encodeURIComponent(playerIdActual)}`, 'POST');
+        if (!data?.ok) {
+          alert('No se pudo abandonar la partida: ' + (data?.estado || 'ERROR'));
+          return;
+        }
+        mostrarFinPartida(false, data.motivoFin || 'ABANDONO');
+      } catch (error) {
+        alert('Error al abandonar la partida: ' + (error?.message || 'ERROR'));
+      }
+    }
+
     async function refreshPartidaState() {
       let playerIdActual = getPlayerIdActual();
       if (!playerIdActual) {
@@ -1124,10 +1188,22 @@
         if (state.partidaFinalizada === true || state.estadoPartida === 'FINALIZADA') {
           const equipoActual = state.equipo || getSessionValue('equipoAsignado');
           const esVictoria = state.ganador === equipoActual;
+          ocultarModalEsperaRival();
+          removeSessionValue('origenReanudacion');
           mostrarFinPartida(esVictoria, state.motivoFin);
           // detener actualización y evitar próxima llamada a board
           refreshInFlight = false;
           return; // No continuar actualizando
+        }
+
+        const esReanudacion = getSessionValue('origenReanudacion') === '1';
+        if (esReanudacion && state.estadoPartida === 'ESPERANDO_RIVAL') {
+          mostrarModalEsperaRival();
+        } else {
+          ocultarModalEsperaRival();
+          if (esReanudacion && state.estadoPartida === 'EN_JUEGO') {
+            removeSessionValue('origenReanudacion');
+          }
         }
 
         if (state.equipo) {
@@ -1660,6 +1736,9 @@
       }
       if (btnDisparar) {
         btnDisparar.addEventListener('click', enterShootMode);
+      }
+      if (btnAbandonar) {
+        btnAbandonar.addEventListener('click', abandonarPartida);
       }
       // handler botón flecha "terminar turno"
       const btnPlay = document.getElementById('btnPlay');

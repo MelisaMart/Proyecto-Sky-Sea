@@ -3,6 +3,9 @@ package com.skysea.server.persistencia.memory;
 import com.skysea.server.logica.model.Partida;
 import com.skysea.server.persistencia.dao.IPartidaDAO;
 
+import java.util.List;
+import java.util.Optional;
+
 public class InMemoryPartidaDAO implements IPartidaDAO {
 
     private volatile Partida partidaActiva;
@@ -14,6 +17,32 @@ public class InMemoryPartidaDAO implements IPartidaDAO {
     @Override
     public synchronized Partida loadActiva() {
         return partidaActiva;
+    }
+
+    @Override
+    public synchronized Optional<Partida> loadById(String idPartida) {
+        if (partidaActiva != null && partidaActiva.getIdPartida().equals(idPartida)) {
+            return Optional.of(partidaActiva);
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public synchronized List<PartidaReanudableInfo> findReanudablesByNombre(String nombreJugador) {
+        if (partidaActiva == null || !partidaActiva.isReanudable()) {
+            return List.of();
+        }
+        boolean esJugador = partidaActiva.buscarJugadorPorNombre(nombreJugador) != null;
+        if (!esJugador) {
+            return List.of();
+        }
+        return List.of(new PartidaReanudableInfo(
+                partidaActiva.getIdPartida(),
+                partidaActiva.getEstado().name(),
+                partidaActiva.buscarJugadorPorNombre(nombreJugador).getEquipo().name(),
+                partidaActiva.getNumeroTurno(),
+                null
+        ));
     }
 
     @Override

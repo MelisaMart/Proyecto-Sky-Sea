@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -29,6 +30,86 @@ public class ServicioPartida {
 
     public synchronized JoinResponse join(String nombre) {
         return join(nombre, null);
+    }
+
+    public synchronized List<PartidaReanudableResponse> listarPartidasReanudables(String nombre) {
+        String nombreLimpio = nombre == null ? "" : nombre.trim();
+        if (nombreLimpio.isEmpty()) {
+            return List.of();
+        }
+
+        return dao.findReanudablesByNombre(nombreLimpio).stream()
+                .map(info -> new PartidaReanudableResponse(
+                        info.idPartida,
+                        info.estadoPartida,
+                        info.equipoJugador,
+                        info.turnoNumero,
+                        info.fechaCreacion
+                ))
+                .toList();
+    }
+
+    public synchronized ResumePartidaResponse reanudarPartida(String nombre, String idPartida) {
+        String nombreLimpio = nombre == null ? "" : nombre.trim();
+        String idPartidaLimpio = idPartida == null ? "" : idPartida.trim();
+
+        if (nombreLimpio.isEmpty()) {
+            return new ResumePartidaResponse(false, "NOMBRE_INVALIDO", null, null, null, null, null, 0, false);
+        }
+        if (idPartidaLimpio.isEmpty()) {
+            return new ResumePartidaResponse(false, "PARTIDA_INVALIDA", null, null, null, null, null, 0, false);
+        }
+
+        Optional<Partida> partidaOpt = dao.loadById(idPartidaLimpio);
+        if (partidaOpt.isEmpty()) {
+            return new ResumePartidaResponse(false, "PARTIDA_NO_ENCONTRADA", null, null, null, null, null, 0, false);
+        }
+
+        Partida partida = partidaOpt.get();
+        if (!partida.isReanudable()) {
+            return new ResumePartidaResponse(false, "PARTIDA_NO_REANUDABLE", partida.getIdPartida(), null,
+                null, null, null, 0, false);
+        }
+
+        Jugador jugador = partida.buscarJugadorPorNombre(nombreLimpio);
+        if (jugador == null) {
+            return new ResumePartidaResponse(false, "PLAYER_NO_ENCONTRADO", partida.getIdPartida(), null,
+                null, null, null, 0, false);
+        }
+
+        Jugador rival = partida.getJugador1() != null && partida.getJugador1().getId().equals(jugador.getId())
+                ? partida.getJugador2()
+                : partida.getJugador1();
+
+        if (partida.getEstado() == EstadoPartida.EN_JUEGO) {
+            if (partida.getJugador1() != null) partida.getJugador1().setConectado(false);
+            if (partida.getJugador2() != null) partida.getJugador2().setConectado(false);
+        }
+
+        jugador.setConectado(true);
+
+        boolean rivalConectado = rival != null && rival.isConectado();
+        if (rivalConectado) {
+            partida.setEstado(EstadoPartida.EN_JUEGO);
+            partida.reiniciarTemporizadorTurno();
+        } else {
+            partida.setEstado(EstadoPartida.ESPERANDO_RIVAL);
+        }
+
+        dao.save(partida);
+
+        int numeroJugador = partida.numeroJugadorPorId(jugador.getId());
+        return new ResumePartidaResponse(
+                true,
+            "OK",
+                partida.getIdPartida(),
+                jugador.getId(),
+                jugador.getNombre(),
+                partida.getEstado().name(),
+                jugador.getEquipo() != null ? jugador.getEquipo().name() : null,
+                numeroJugador,
+                !rivalConectado
+        );
     }
 
     public synchronized JoinResponse join(String nombre, String equipoDeseado) {
@@ -157,6 +238,7 @@ public class ServicioPartida {
         boolean partidaFinalizada = partida.getEstado() == EstadoPartida.FINALIZADA;
         String ganador = partidaFinalizada && partida.getGanador() != null ? partida.getGanador().name() : null;
         String motivoFin = partidaFinalizada && partida.getMotivoFin() != null ? partida.getMotivoFin().name() : null;
+        boolean isReanudable = partida.isReanudable();
 
         return new TurnoEstadoResponse(
                 partida.getIdPartida(),
@@ -170,8 +252,41 @@ public class ServicioPartida {
                 Partida.DURACION_TURNO_SEGUNDOS,
                 partidaFinalizada,
                 ganador,
-                motivoFin
+                motivoFin,
+                isReanudable
         );
+    }
+
+    public synchronized AbandonResponse abandonarPartida(String playerId) {
+        Partida partida = dao.loadActiva();
+
+        Jugador jugador = partida.buscarJugadorPorId(playerId);
+        if (jugador == null) {
+            return new AbandonResponse(false, "PLAYER_NO_ENCONTRADO", null, null, false);
+        }
+
+        if (partida.getEstado() == EstadoPartida.FINALIZADA) {
+            String ganadorActual = partida.getGanador() != null ? partida.getGanador().name() : null;
+            String motivoActual = partida.getMotivoFin() != null ? partida.getMotivoFin().name() : null;
+            return new AbandonResponse(true, "PARTIDA_FINALIZADA", ganadorActual, motivoActual, partida.isReanudable());
+        }
+
+        if (partida.getEstado() != EstadoPartida.EN_JUEGO) {
+            return new AbandonResponse(false, "PARTIDA_NO_EN_JUEGO", null, null, partida.isReanudable());
+        }
+
+        Jugador rival = partida.getJugador1() != null && partida.getJugador1().getId().equals(playerId)
+                ? partida.getJugador2()
+                : partida.getJugador1();
+
+        Equipo equipoGanador = rival != null ? rival.getEquipo() : null;
+        finalizarPartida(partida, equipoGanador, MotivoFinPartida.ABANDONO);
+        dao.save(partida);
+
+        return new AbandonResponse(true, "OK",
+                equipoGanador != null ? equipoGanador.name() : null,
+                MotivoFinPartida.ABANDONO.name(),
+                partida.isReanudable());
     }
 
     // Clase interna simple para que el Service no dependa del DTO de presentación
@@ -871,45 +986,40 @@ public class ServicioPartida {
 
         // === prioridad 1: porta destruido ===
         if (navalPorta) {
-            partida.setEstado(EstadoPartida.FINALIZADA);
-            partida.setGanador(Equipo.AEREO);
-            partida.setMotivoFin(MotivoFinPartida.PORTA_DESTRUIDO);
+            finalizarPartida(partida, Equipo.AEREO, MotivoFinPartida.PORTA_DESTRUIDO);
             return;
         }
         if (aereoPorta) {
-            partida.setEstado(EstadoPartida.FINALIZADA);
-            partida.setGanador(Equipo.NAVAL);
-            partida.setMotivoFin(MotivoFinPartida.PORTA_DESTRUIDO);
+            finalizarPartida(partida, Equipo.NAVAL, MotivoFinPartida.PORTA_DESTRUIDO);
             return;
         }
 
         // === prioridad 2: sin drones vivos ===
         if (navalSinDrones) {
-            partida.setEstado(EstadoPartida.FINALIZADA);
-            partida.setGanador(Equipo.AEREO);
-            partida.setMotivoFin(MotivoFinPartida.SIN_DRONES);
+            finalizarPartida(partida, Equipo.AEREO, MotivoFinPartida.SIN_DRONES);
             return;
         }
         if (aereoSinDrones) {
-            partida.setEstado(EstadoPartida.FINALIZADA);
-            partida.setGanador(Equipo.NAVAL);
-            partida.setMotivoFin(MotivoFinPartida.SIN_DRONES);
+            finalizarPartida(partida, Equipo.NAVAL, MotivoFinPartida.SIN_DRONES);
             return;
         }
 
         // === prioridad 3: sin munición (solo si nadie perdió drones ni porta) ===
         if (navalSinMun) {
-            partida.setEstado(EstadoPartida.FINALIZADA);
-            partida.setGanador(Equipo.AEREO);
-            partida.setMotivoFin(MotivoFinPartida.SIN_MUNICION);
+            finalizarPartida(partida, Equipo.AEREO, MotivoFinPartida.SIN_MUNICION);
             return;
         }
         if (aereoSinMun) {
-            partida.setEstado(EstadoPartida.FINALIZADA);
-            partida.setGanador(Equipo.NAVAL);
-            partida.setMotivoFin(MotivoFinPartida.SIN_MUNICION);
+            finalizarPartida(partida, Equipo.NAVAL, MotivoFinPartida.SIN_MUNICION);
             return;
         }
+    }
+
+    private void finalizarPartida(Partida partida, Equipo ganador, MotivoFinPartida motivoFin) {
+        partida.setEstado(EstadoPartida.FINALIZADA);
+        partida.setGanador(ganador);
+        partida.setMotivoFin(motivoFin);
+        partida.setReanudable(false);
     }
 
     /**
@@ -1236,6 +1346,7 @@ public class ServicioPartida {
         public final boolean partidaFinalizada;  // Si la partida ha finalizado
         public final String ganador;              // "NAVAL" o "AEREO" (null si no finalizó)
         public final String motivoFin;            // "PORTA_DESTRUIDO", "SIN_DRONES", "SIN_MUNICION" (null si no finalizó)
+        public final boolean isReanudable;
 
         public TurnoEstadoResponse(String idPartida,
                                    String estadoPartida,
@@ -1247,7 +1358,7 @@ public class ServicioPartida {
                                    int segundosRestantesTurno,
                                    int duracionTurnoSegundos) {
             this(idPartida, estadoPartida, turnoDe, numeroTurno, equipo, numeroJugador, esMiTurno,
-                    segundosRestantesTurno, duracionTurnoSegundos, false, null, null);
+                    segundosRestantesTurno, duracionTurnoSegundos, false, null, null, true);
         }
 
         public TurnoEstadoResponse(String idPartida,
@@ -1261,7 +1372,8 @@ public class ServicioPartida {
                                    int duracionTurnoSegundos,
                                    boolean partidaFinalizada,
                                    String ganador,
-                                   String motivoFin) {
+                                   String motivoFin,
+                                   boolean isReanudable) {
             this.idPartida = idPartida;
             this.estadoPartida = estadoPartida;
             this.turnoDe = turnoDe;
@@ -1274,6 +1386,75 @@ public class ServicioPartida {
             this.partidaFinalizada = partidaFinalizada;
             this.ganador = ganador;
             this.motivoFin = motivoFin;
+            this.isReanudable = isReanudable;
+        }
+    }
+
+    public static class AbandonResponse {
+        public final boolean ok;
+        public final String estado;
+        public final String ganador;
+        public final String motivoFin;
+        public final boolean isReanudable;
+
+        public AbandonResponse(boolean ok, String estado, String ganador, String motivoFin, boolean isReanudable) {
+            this.ok = ok;
+            this.estado = estado;
+            this.ganador = ganador;
+            this.motivoFin = motivoFin;
+            this.isReanudable = isReanudable;
+        }
+    }
+
+    public static class PartidaReanudableResponse {
+        public final String idPartida;
+        public final String estadoPartida;
+        public final String equipoJugador;
+        public final int turnoNumero;
+        public final String fechaCreacion;
+
+        public PartidaReanudableResponse(String idPartida,
+                                         String estadoPartida,
+                                         String equipoJugador,
+                                         int turnoNumero,
+                                         String fechaCreacion) {
+            this.idPartida = idPartida;
+            this.estadoPartida = estadoPartida;
+            this.equipoJugador = equipoJugador;
+            this.turnoNumero = turnoNumero;
+            this.fechaCreacion = fechaCreacion;
+        }
+    }
+
+    public static class ResumePartidaResponse {
+        public final boolean ok;
+        public final String estado;
+        public final String idPartida;
+        public final String playerId;
+        public final String nombre;
+        public final String estadoPartida;
+        public final String equipo;
+        public final int numeroJugador;
+        public final boolean esperandoRival;
+
+        public ResumePartidaResponse(boolean ok,
+                         String estado,
+                                     String idPartida,
+                                     String playerId,
+                                     String nombre,
+                                     String estadoPartida,
+                                     String equipo,
+                                     int numeroJugador,
+                                     boolean esperandoRival) {
+            this.ok = ok;
+            this.estado = estado;
+            this.idPartida = idPartida;
+            this.playerId = playerId;
+            this.nombre = nombre;
+            this.estadoPartida = estadoPartida;
+            this.equipo = equipo;
+            this.numeroJugador = numeroJugador;
+            this.esperandoRival = esperandoRival;
         }
     }
 

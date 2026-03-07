@@ -185,6 +185,56 @@ main {
     border-radius: 8px;
 }
 
+.modal-actions-columna {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+}
+
+.modal-modo-inicio {
+    width: 420px;
+    max-width: 92%;
+}
+
+.modal-reanudar {
+    width: 560px;
+    max-width: 95%;
+}
+
+.lista-reanudables {
+    max-height: 280px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 12px 0;
+    padding-right: 4px;
+}
+
+.item-reanudable {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    width: 100%;
+    text-align: left;
+    padding: 10px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 9px;
+    line-height: 1.4;
+    color: #ffffff;
+    background: #101010;
+    border: 1px solid #5c5c5c;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.item-reanudable:hover {
+    border-color: #00d4ff;
+    box-shadow: 0 0 12px rgba(0, 212, 255, 0.5);
+    background: #1a1a1a;
+}
+
 .error {
     z-index: 12000;
 }
@@ -350,6 +400,17 @@ main {
     padding: 10px 16px;
     font-size: 11px;
     border-radius: 12px;
+}
+
+.boton-abandonar {
+    color: #ffdddd;
+    border-color: #8b1e1e;
+    background: #5f1111;
+}
+
+.boton-abandonar:hover {
+    color: #ffffff;
+    background: #7d1b1b;
 }
 
 .boton-play {
@@ -1020,6 +1081,19 @@ main {
     border-color: #00ff00;
     box-shadow: 0 0 25px #00ff00;
     transform: scale(1.08);
+}
+
+.modal-espera-rival {
+    width: 520px;
+    max-width: 92%;
+}
+
+.espera-rival-texto {
+    margin: 6px 0 14px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 11px;
+    line-height: 1.7;
+    color: #ffffff;
 }
 /* ========== ESTILOS MODAL FIN DE PARTIDA ========== */
 
