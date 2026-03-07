@@ -20,7 +20,13 @@ public class Porta {
     }
 
     public Porta(Equipo equipo, List<Posicion> celdasOcupadas) {
-        this.id = UUID.randomUUID().toString();
+        this(UUID.randomUUID().toString(), equipo, celdasOcupadas,
+                (equipo == Equipo.AEREO) ? Reglas.IMPACTOS_PORTA_AEREO : Reglas.IMPACTOS_PORTA_NAVAL);
+    }
+
+    // Para reconstruccion desde persistencia
+    public Porta(String id, Equipo equipo, List<Posicion> celdasOcupadas, int impactosRestantes) {
+        this.id = Objects.requireNonNull(id);
         this.equipo = Objects.requireNonNull(equipo);
         Objects.requireNonNull(celdasOcupadas);
         if (celdasOcupadas.isEmpty()) {
@@ -33,9 +39,7 @@ public class Porta {
         }
 
         this.posicion = this.celdasOcupadas.get(0);
-        this.impactosRestantes = (equipo == Equipo.AEREO)
-                ? Reglas.IMPACTOS_PORTA_AEREO
-                : Reglas.IMPACTOS_PORTA_NAVAL;
+        this.impactosRestantes = Math.max(0, impactosRestantes);
     }
 
     public String getId() { return id; }

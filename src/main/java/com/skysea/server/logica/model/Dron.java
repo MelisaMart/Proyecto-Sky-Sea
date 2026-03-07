@@ -22,29 +22,44 @@ public class Dron {
     private boolean disparoEsteTurno;
 
     public Dron(Equipo equipo, Posicion posicion) {
-        this.id = UUID.randomUUID().toString();
+        this(
+                UUID.randomUUID().toString(),
+                equipo,
+                posicion,
+                (equipo == Equipo.AEREO) ? Reglas.VIDA_DRON_AEREO : Reglas.VIDA_DRON_NAVAL,
+                (equipo == Equipo.AEREO) ? Reglas.MUNICION_BOMBA : Reglas.MUNICION_MISIL,
+                false,
+                false
+        );
+    }
+
+    // Para reconstruccion desde persistencia
+    public Dron(String id,
+                Equipo equipo,
+                Posicion posicion,
+                int vida,
+                int municion,
+                boolean movioEsteTurno,
+                boolean disparoEsteTurno) {
+        this.id = Objects.requireNonNull(id);
         this.equipo = Objects.requireNonNull(equipo);
         this.posicion = Objects.requireNonNull(posicion);
-        this.destruido = false;
+        this.destruido = vida <= 0;
 
         this.rangoMovimiento = Reglas.RANGO_MOVIMIENTO_DRON;
 
         if (equipo == Equipo.AEREO) {
-            // Dron AEREO => BOMBA
-            this.vida = Reglas.VIDA_DRON_AEREO;
-            this.municion = Reglas.MUNICION_BOMBA;
             this.rangoVision = Reglas.VISION_BOMBA;
             this.rangoAtaque = Reglas.RANGO_ATAQUE_BOMBA;
         } else {
-            // Dron NAVAL => MISIL
-            this.vida = Reglas.VIDA_DRON_NAVAL;
-            this.municion = Reglas.MUNICION_MISIL;
             this.rangoVision = Reglas.VISION_MISIL;
             this.rangoAtaque = Reglas.RANGO_ATAQUE_MISIL;
         }
 
-        this.movioEsteTurno = false;
-        this.disparoEsteTurno = false;
+        this.vida = Math.max(0, vida);
+        this.municion = Math.max(0, municion);
+        this.movioEsteTurno = movioEsteTurno;
+        this.disparoEsteTurno = disparoEsteTurno;
     }
 
     public String getId() { return id; }
@@ -59,6 +74,8 @@ public class Dron {
     public int getRangoMovimiento() { return rangoMovimiento; }
     public int getRangoVision() { return rangoVision; }
     public int getRangoAtaque() { return rangoAtaque; }
+    public boolean isMovioEsteTurno() { return movioEsteTurno; }
+    public boolean isDisparoEsteTurno() { return disparoEsteTurno; }
 
     public boolean estaVivo() { return !destruido && vida > 0; }
 

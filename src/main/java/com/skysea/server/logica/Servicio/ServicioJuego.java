@@ -2,7 +2,9 @@ package com.skysea.server.logica.Servicio;
 
 import com.skysea.server.logica.model.*;
 import com.skysea.server.persistencia.dao.IGameStateDAO;
+import org.springframework.stereotype.Service;
 
+@Service
 public class ServicioJuego {
 
     private final IGameStateDAO dao;

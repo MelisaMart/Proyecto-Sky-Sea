@@ -22,7 +22,12 @@ public class Partida {
     private MotivoFinPartida motivoFin;     // Motivo por el cual finalizó (puede ser null si no ha finalizado)
 
     public Partida() {
-        this.idPartida = UUID.randomUUID().toString();
+        this(UUID.randomUUID().toString());
+    }
+
+    // Para reconstruccion desde persistencia
+    public Partida(String idPartida) {
+        this.idPartida = Objects.requireNonNull(idPartida);
         this.estado = EstadoPartida.ESPERANDO_RIVAL;
         this.numeroTurno = 1;
         this.turnoDe = Equipo.NAVAL; // regla del doc: naval empieza

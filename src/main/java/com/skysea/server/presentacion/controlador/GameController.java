@@ -2,12 +2,10 @@ package com.skysea.server.presentacion.controlador;
 
 import com.skysea.server.logica.model.EstadoJuego;
 import com.skysea.server.logica.Servicio.ServicioJuego;
-import com.skysea.server.persistencia.memory.InMemoryGameStateDAO;
 import com.skysea.server.presentacion.dto.GameStateDTO;
 import com.skysea.server.presentacion.dto.ShotDTO;
 import org.springframework.web.bind.annotation.*;
 import com.skysea.server.logica.Servicio.ServicioPartida;
-import com.skysea.server.persistencia.memory.InMemoryPartidaDAO;
 import com.skysea.server.presentacion.dto.JoinResponseDTO;
 
 
@@ -19,10 +17,9 @@ public class GameController {
     private final ServicioJuego servicio;
     private final ServicioPartida servicioPartida;
 
-    public GameController() {
-        // MVP: cableado manual en memoria (después lo pasamos a inyección con @Bean/@Service)
-        this.servicio = new ServicioJuego(new InMemoryGameStateDAO());
-        this.servicioPartida = new ServicioPartida(new InMemoryPartidaDAO());
+    public GameController(ServicioJuego servicio, ServicioPartida servicioPartida) {
+        this.servicio = servicio;
+        this.servicioPartida = servicioPartida;
     }
 
     @GetMapping("/state")

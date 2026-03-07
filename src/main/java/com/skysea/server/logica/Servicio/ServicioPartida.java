@@ -2,12 +2,14 @@ package com.skysea.server.logica.Servicio;
 
 import com.skysea.server.logica.model.*;
 import com.skysea.server.persistencia.dao.IPartidaDAO;
+import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+@Service
 public class ServicioPartida {
 
     private final IPartidaDAO dao;
@@ -32,6 +34,14 @@ public class ServicioPartida {
     public synchronized JoinResponse join(String nombre, String equipoDeseado) {
         Partida partida = dao.loadActiva();
         EstadoPartida estadoAnterior = partida.getEstado();
+
+        // Si la partida anterior ya finalizó, al primer join se abre una nueva
+        // para evitar que el inicio quede bloqueado con estado "OCUPADO".
+        if (partida.getEstado() == EstadoPartida.FINALIZADA) {
+            dao.reset();
+            partida = dao.loadActiva();
+            estadoAnterior = partida.getEstado();
+        }
 
         String nombreLimpio = nombre == null ? "" : nombre.trim();
         if (nombreLimpio.isEmpty()) {

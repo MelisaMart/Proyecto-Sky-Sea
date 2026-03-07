@@ -361,6 +361,11 @@
       localStorage.removeItem(key);
     }
 
+    function removeSessionValue(key) {
+      sessionStorage.removeItem(key);
+      localStorage.removeItem(key);
+    }
+
     let playerId = getSessionValue('playerId');
     const indicadorJugador = document.getElementById('indicadorJugador');
     const indicadorTurno = document.getElementById('indicadorTurno');
@@ -1090,7 +1095,30 @@
       refreshInFlight = true;
 
       try {
-        const state = await apiRequest(`/state2?playerId=${encodeURIComponent(playerIdActual)}`);
+        let state;
+        try {
+          state = await apiRequest(`/state2?playerId=${encodeURIComponent(playerIdActual)}`);
+        } catch (stateError) {
+          const msg = String(stateError?.message || '').toUpperCase();
+          // Si el backend ya no reconoce el playerId (p. ej. tras reset), reintentar
+          // una sola vez recuperando sesión por nombre.
+          if (msg.includes('PLAYER_NO_ENCONTRADO')) {
+            playerId = null;
+            removeSessionValue('playerId');
+            const recuperado = await intentarRecuperarSesion();
+            if (recuperado) {
+              playerIdActual = getPlayerIdActual();
+              if (!playerIdActual) {
+                throw stateError;
+              }
+              state = await apiRequest(`/state2?playerId=${encodeURIComponent(playerIdActual)}`);
+            } else {
+              throw stateError;
+            }
+          } else {
+            throw stateError;
+          }
+        }
 
         // ========== VERIFICAR FIN DE PARTIDA ==========
         if (state.partidaFinalizada === true || state.estadoPartida === 'FINALIZADA') {
