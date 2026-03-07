@@ -1,7 +1,6 @@
 package com.skysea.server.persistencia.jpa;
 
 import com.skysea.server.logica.model.Partida;
-import com.skysea.server.logica.model.EstadoPartida;
 import com.skysea.server.persistencia.dao.IPartidaDAO;
 import com.skysea.server.persistencia.jpa.entity.PartidaEntity;
 import com.skysea.server.persistencia.jpa.mapper.PartidaJpaMapper;
@@ -37,6 +36,10 @@ public class MySqlPartidaDAO implements IPartidaDAO {
     @Override
     @Transactional
     public synchronized void save(Partida partida) {
+        // En cualquier guardado mantenemos solo una partida activa: la actual.
+        // Esto conserva historial (FINALIZADA y anteriores) sin borrar filas.
+        partidaRepository.desactivarActivasExcepto(partida.getIdPartida());
+
         PartidaEntity entity = mapper.toEntity(partida);
         partidaRepository.findById(partida.getIdPartida()).ifPresent(existing -> {
             entity.setFechaCreacion(existing.getFechaCreacion());
@@ -45,14 +48,18 @@ public class MySqlPartidaDAO implements IPartidaDAO {
         if (entity.getFechaCreacion() == null) {
             entity.setFechaCreacion(LocalDateTime.now());
         }
-        entity.setActiva(partida.getEstado() != EstadoPartida.FINALIZADA);
+        // Mantener la partida finalizada como "activa" para que state2/board
+        // sigan apuntando al mismo juego y el frontend pueda mostrar fin de partida.
+        // La creacion de una nueva partida queda a cargo de reset() o join() al detectar FINALIZADA.
+        entity.setActiva(true);
         partidaRepository.save(entity);
     }
 
     @Override
     @Transactional
     public synchronized void reset() {
-        partidaRepository.deleteAllInBatch();
+        // No se elimina historial: solo se cierra la activa y se abre una nueva.
+        partidaRepository.desactivarTodasLasActivas();
         save(new Partida());
     }
 }

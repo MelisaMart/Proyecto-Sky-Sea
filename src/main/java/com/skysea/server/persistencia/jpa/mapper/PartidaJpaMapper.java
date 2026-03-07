@@ -59,7 +59,8 @@ public class PartidaJpaMapper {
         entity.setGanador(domain.getGanador());
         entity.setGanadorEquipo(domain.getGanador());
         entity.setMotivoFin(domain.getMotivoFin());
-        entity.setActiva(domain.getEstado() != EstadoPartida.FINALIZADA);
+        // Persistimos siempre como activa; la rotacion de partida la manejan reset/join.
+        entity.setActiva(true);
 
         List<JugadorEntity> jugadores = new ArrayList<>();
         JugadorEntity j1 = toEntityJugador(domain.getJugador1(), entity, 1);
