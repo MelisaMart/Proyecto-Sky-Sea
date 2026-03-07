@@ -228,6 +228,8 @@ public class ServicioPartida {
             throw new IllegalArgumentException("PLAYER_NO_ENCONTRADO");
         }
 
+        reconciliarConectividad(partida, jugador);
+
         boolean enJuego = partida.getEstado() == EstadoPartida.EN_JUEGO;
         boolean esMiTurno = enJuego && partida.esTurnoDe(playerId);
         int segundosRestantes = enJuego
@@ -255,6 +257,33 @@ public class ServicioPartida {
                 motivoFin,
                 isReanudable
         );
+    }
+
+    private void reconciliarConectividad(Partida partida, Jugador jugadorActual) {
+        if (partida.getEstado() == EstadoPartida.FINALIZADA) {
+            return;
+        }
+
+        Jugador rival = partida.getJugador1() != null && partida.getJugador1().getId().equals(jugadorActual.getId())
+                ? partida.getJugador2()
+                : partida.getJugador1();
+
+        boolean cambios = false;
+        if (!jugadorActual.isConectado()) {
+            jugadorActual.setConectado(true);
+            cambios = true;
+        }
+
+        boolean ambosConectados = rival != null && rival.isConectado() && jugadorActual.isConectado();
+        if (partida.getEstado() == EstadoPartida.ESPERANDO_RIVAL && ambosConectados) {
+            partida.setEstado(EstadoPartida.EN_JUEGO);
+            partida.reiniciarTemporizadorTurno();
+            cambios = true;
+        }
+
+        if (cambios) {
+            dao.save(partida);
+        }
     }
 
     public synchronized AbandonResponse abandonarPartida(String playerId) {
@@ -287,6 +316,25 @@ public class ServicioPartida {
                 equipoGanador != null ? equipoGanador.name() : null,
                 MotivoFinPartida.ABANDONO.name(),
                 partida.isReanudable());
+    }
+
+    public synchronized DisconnectResponse desconectarJugador(String playerId) {
+        Partida partida = dao.loadActiva();
+        Jugador jugador = partida.buscarJugadorPorId(playerId);
+        if (jugador == null) {
+            return new DisconnectResponse(false, "PLAYER_NO_ENCONTRADO", null, false);
+        }
+
+        jugador.setConectado(false);
+
+        if (partida.getEstado() == EstadoPartida.EN_JUEGO) {
+            // Si un jugador se desconecta durante una partida activa, se pausa
+            // para permitir reanudación cuando vuelva a entrar.
+            partida.setEstado(EstadoPartida.ESPERANDO_RIVAL);
+        }
+
+        dao.save(partida);
+        return new DisconnectResponse(true, "OK", partida.getEstado().name(), partida.isReanudable());
     }
 
     // Clase interna simple para que el Service no dependa del DTO de presentación
@@ -1402,6 +1450,20 @@ public class ServicioPartida {
             this.estado = estado;
             this.ganador = ganador;
             this.motivoFin = motivoFin;
+            this.isReanudable = isReanudable;
+        }
+    }
+
+    public static class DisconnectResponse {
+        public final boolean ok;
+        public final String estado;
+        public final String estadoPartida;
+        public final boolean isReanudable;
+
+        public DisconnectResponse(boolean ok, String estado, String estadoPartida, boolean isReanudable) {
+            this.ok = ok;
+            this.estado = estado;
+            this.estadoPartida = estadoPartida;
             this.isReanudable = isReanudable;
         }
     }

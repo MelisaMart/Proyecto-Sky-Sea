@@ -126,7 +126,7 @@
 
   <div id="reanudarEsperaModal" class="modal-overlay" aria-hidden="true" role="dialog" aria-modal="true">
     <div class="modal-box modal-espera-rival">
-      <p class="modal-titulo">PARTIDA REANUDADA</p>
+      <p class="modal-titulo">PARTIDA EN PAUSA</p>
       <p class="espera-rival-texto">Esperando al rival para continuar la partida...</p>
       <div class="modal-actions">
         <button id="reanudarSalirBtn" class="game-btn" type="button">Salir al menú</button>
@@ -462,6 +462,7 @@
     let yaEstuvoEnJuego = false;
     let abandonoNotificado = false;
     let refreshIntervalId = null;
+    let desconexionNotificada = false;
 
     // Variables para detectar daño recibido
     let estadoUnitadesAnterior = null;
@@ -1139,6 +1140,40 @@
       }
     }
 
+    function notificarDesconexion() {
+      if (desconexionNotificada) {
+        return;
+      }
+
+      const playerIdActual = getPlayerIdActual();
+      if (!playerIdActual) {
+        return;
+      }
+
+      const url = `${API}/disconnect?playerId=${encodeURIComponent(playerIdActual)}`;
+      desconexionNotificada = true;
+
+      try {
+        if (navigator.sendBeacon) {
+          const sent = navigator.sendBeacon(url);
+          if (sent) {
+            return;
+          }
+        }
+      } catch (_) {
+        // ignore and fallback to fetch keepalive
+      }
+
+      try {
+        fetch(url, { method: 'POST', keepalive: true });
+      } catch (_) {
+        // best effort only during page unload
+      }
+    }
+
+    window.addEventListener('pagehide', notificarDesconexion);
+    window.addEventListener('beforeunload', notificarDesconexion);
+
     async function refreshPartidaState() {
       let playerIdActual = getPlayerIdActual();
       if (!playerIdActual) {
@@ -1197,7 +1232,8 @@
         }
 
         const esReanudacion = getSessionValue('origenReanudacion') === '1';
-        if (esReanudacion && state.estadoPartida === 'ESPERANDO_RIVAL') {
+        const esperandoRival = String(state.estadoPartida || '').toUpperCase() === 'ESPERANDO_RIVAL';
+        if (esperandoRival) {
           mostrarModalEsperaRival();
         } else {
           ocultarModalEsperaRival();
