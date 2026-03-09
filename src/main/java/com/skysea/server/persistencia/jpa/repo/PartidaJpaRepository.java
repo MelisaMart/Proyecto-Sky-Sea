@@ -37,6 +37,19 @@ public interface PartidaJpaRepository extends JpaRepository<PartidaEntity, Strin
             """)
     List<PartidaReanudableProjection> findReanudablesByNombre(@Param("nombre") String nombre);
 
+    @Query("""
+            select case when count(j) > 0 then true else false end
+            from JugadorEntity j
+            join j.partida p
+            where upper(j.nombre) = upper(:nombre)
+              and p.activa = true
+              and (
+                p.estado = com.skysea.server.logica.model.EstadoPartida.EN_JUEGO
+                or p.estado = com.skysea.server.logica.model.EstadoPartida.ESPERANDO_RIVAL
+              )
+            """)
+    boolean existsNombreEnPartidaActiva(@Param("nombre") String nombre);
+
     @Modifying
     @Query("update PartidaEntity p set p.activa = false where p.activa = true")
     int desactivarTodasLasActivas();

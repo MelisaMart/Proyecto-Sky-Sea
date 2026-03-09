@@ -9,6 +9,7 @@ public interface IPartidaDAO {
     Partida loadActiva();
     Optional<Partida> loadById(String idPartida);
     List<PartidaReanudableInfo> findReanudablesByNombre(String nombreJugador);
+    boolean existsNombreEnPartidaActiva(String nombreJugador);
     void save(Partida partida);
     void reset();
 

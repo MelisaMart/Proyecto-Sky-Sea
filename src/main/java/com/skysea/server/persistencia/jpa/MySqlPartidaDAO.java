@@ -63,6 +63,15 @@ public class MySqlPartidaDAO implements IPartidaDAO {
 
     @Override
     @Transactional
+    public synchronized boolean existsNombreEnPartidaActiva(String nombreJugador) {
+        if (nombreJugador == null || nombreJugador.isBlank()) {
+            return false;
+        }
+        return partidaRepository.existsNombreEnPartidaActiva(nombreJugador.trim());
+    }
+
+    @Override
+    @Transactional
     public synchronized void save(Partida partida) {
         // En cualquier guardado mantenemos solo una partida activa: la actual.
         // Esto conserva historial (FINALIZADA y anteriores) sin borrar filas.

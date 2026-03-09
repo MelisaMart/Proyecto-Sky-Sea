@@ -88,4 +88,28 @@ class ServicioPartidaConcurrencyTest {
         assertNotNull(partida.buscarJugadorPorId(j2.playerId));
         assertEquals(EstadoPartida.EN_JUEGO, partida.getEstado());
     }
+
+    @Test
+    void bloqueaNombreSiYaEstaEnPartidaEsperandoRival() {
+        ServicioPartida.JoinResponse primero = servicio.join("NombreRepetido", "NAVAL");
+        ServicioPartida.JoinResponse segundo = servicio.join("NombreRepetido", "AEREO");
+
+        assertNotNull(primero.playerId);
+        assertEquals("USUARIO_EN_PARTIDA_ACTIVA", segundo.estadoPartida);
+        assertNull(segundo.playerId);
+    }
+
+    @Test
+    void permiteReusarNombreSiPartidaYaNoEstaActivaEnJuego() {
+        ServicioPartida.JoinResponse primero = servicio.join("NombreFinalizado", "NAVAL");
+        assertNotNull(primero.playerId);
+
+        Partida partida = dao.loadActiva();
+        partida.setEstado(EstadoPartida.FINALIZADA);
+        dao.save(partida);
+
+        ServicioPartida.JoinResponse nuevoIngreso = servicio.join("NombreFinalizado", "AEREO");
+        assertNotNull(nuevoIngreso.playerId);
+        assertNotEquals("USUARIO_EN_PARTIDA_ACTIVA", nuevoIngreso.estadoPartida);
+    }
 }

@@ -1,5 +1,6 @@
 package com.skysea.server.persistencia.memory;
 
+import com.skysea.server.logica.model.EstadoPartida;
 import com.skysea.server.logica.model.Partida;
 import com.skysea.server.persistencia.dao.IPartidaDAO;
 
@@ -43,6 +44,21 @@ public class InMemoryPartidaDAO implements IPartidaDAO {
                 partidaActiva.getNumeroTurno(),
                 null
         ));
+    }
+
+    @Override
+    public synchronized boolean existsNombreEnPartidaActiva(String nombreJugador) {
+        if (partidaActiva == null || nombreJugador == null || nombreJugador.isBlank()) {
+            return false;
+        }
+
+        EstadoPartida estado = partidaActiva.getEstado();
+        boolean partidaBloqueante = estado == EstadoPartida.EN_JUEGO || estado == EstadoPartida.ESPERANDO_RIVAL;
+        if (!partidaBloqueante) {
+            return false;
+        }
+
+        return partidaActiva.buscarJugadorPorNombre(nombreJugador.trim()) != null;
     }
 
     @Override

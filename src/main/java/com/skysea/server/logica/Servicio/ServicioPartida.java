@@ -38,6 +38,10 @@ public class ServicioPartida {
             return List.of();
         }
 
+        if (dao.existsNombreEnPartidaActiva(nombreLimpio)) {
+            throw new IllegalArgumentException("USUARIO_EN_PARTIDA_ACTIVA");
+        }
+
         return dao.findReanudablesByNombre(nombreLimpio).stream()
                 .map(info -> new PartidaReanudableResponse(
                         info.idPartida,
@@ -58,6 +62,10 @@ public class ServicioPartida {
         }
         if (idPartidaLimpio.isEmpty()) {
             return new ResumePartidaResponse(false, "PARTIDA_INVALIDA", null, null, null, null, null, 0, false);
+        }
+
+        if (dao.existsNombreEnPartidaActiva(nombreLimpio)) {
+            return new ResumePartidaResponse(false, "USUARIO_EN_PARTIDA_ACTIVA", null, null, null, null, null, 0, false);
         }
 
         Optional<Partida> partidaOpt = dao.loadById(idPartidaLimpio);
@@ -127,6 +135,10 @@ public class ServicioPartida {
         String nombreLimpio = nombre == null ? "" : nombre.trim();
         if (nombreLimpio.isEmpty()) {
             return new JoinResponse(null, null, "", "NOMBRE_INVALIDO", null, 0);
+        }
+
+        if (dao.existsNombreEnPartidaActiva(nombreLimpio)) {
+            return new JoinResponse(partida.getIdPartida(), null, nombreLimpio, "USUARIO_EN_PARTIDA_ACTIVA", null, 0);
         }
 
         Jugador existente = partida.buscarJugadorPorNombre(nombreLimpio);
