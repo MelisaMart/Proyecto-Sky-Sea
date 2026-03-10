@@ -409,23 +409,18 @@ public class ServicioPartida {
             return new DisconnectResponse(false, "PARTIDA_NO_ESPERA_RIVAL", partida.getEstado().name(), partida.isReanudable());
         }
 
-        if (partida.getJugador1() != null && playerId.equals(partida.getJugador1().getId())) {
-            partida.clearJugador1();
-        } else if (partida.getJugador2() != null && playerId.equals(partida.getJugador2().getId())) {
-            partida.clearJugador2();
-        }
+        Jugador rival = partida.getJugador1() != null && playerId.equals(partida.getJugador1().getId())
+                ? partida.getJugador2()
+                : partida.getJugador1();
+        Equipo equipoGanador = rival != null ? rival.getEquipo() : null;
 
-        Jugador restante = partida.getJugador1() != null ? partida.getJugador1() : partida.getJugador2();
-        if (restante == null) {
-            dao.reset();
-            return new DisconnectResponse(true, "PARTIDA_CANCELADA", EstadoPartida.ESPERANDO_RIVAL.name(), true);
-        }
-
-        restante.setConectado(true);
-        partida.setPrimerJugadorId(restante.getId());
-        partida.setEstado(EstadoPartida.ESPERANDO_RIVAL);
+        // Salir desde el modal de espera se interpreta como abandono explícito:
+        // la partida no debe quedar reanudable para este jugador.
+        finalizarPartida(partida, equipoGanador, MotivoFinPartida.ABANDONO);
         dao.save(partida);
-        return new DisconnectResponse(true, "OK", partida.getEstado().name(), partida.isReanudable());
+        dao.reset();
+
+        return new DisconnectResponse(true, "PARTIDA_FINALIZADA", EstadoPartida.FINALIZADA.name(), false);
     }
 
     // Clase interna simple para que el Service no dependa del DTO de presentación

@@ -126,6 +126,20 @@ class ServicioPartidaConcurrencyTest {
     }
 
     @Test
+    void salirEnEsperaNoDejaPartidaReanudable() {
+        ServicioPartida.JoinResponse j1 = servicio.join("NoReanudar", "NAVAL");
+        assertNotNull(j1.playerId);
+
+        ServicioPartida.DisconnectResponse salida = servicio.salirAlMenuDesdeEspera(j1.playerId);
+        assertTrue(salida.ok);
+        assertEquals("PARTIDA_FINALIZADA", salida.estado);
+        assertFalse(salida.isReanudable);
+
+        var reanudables = servicio.listarPartidasReanudables("NoReanudar");
+        assertTrue(reanudables.isEmpty());
+    }
+
+    @Test
     void nombreActivoPuedeReanudarSuPartida() {
         ServicioPartida.JoinResponse j1 = servicio.join("ReanudaActivo", "NAVAL");
         assertNotNull(j1.playerId);
