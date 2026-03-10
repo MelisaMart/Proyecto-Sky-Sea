@@ -154,7 +154,7 @@
       FUERA_DE_TABLERO: 'La celda seleccionada está fuera del tablero.',
       OBJETIVO_PROPIO: 'No podés apuntar a una unidad de tu propio equipo.',
       OBJETIVO_DESTRUIDO: 'La unidad objetivo ya está destruida.',
-      NO_HAY_OBJETIVO_ENEMIGO: 'No hay un objetivo enemigo en esa posición.',
+      NO_HAY_OBJETIVO_ENEMIGO: 'No se puede. No hay ningun rival aqui',
       PARTIDA_NO_EN_JUEGO: 'La partida no está disponible en este momento.',
       ESTADO_INVALIDO: 'No se puede realizar esta acción en el estado actual de la partida.',
       HTTP_404: 'No se encontró el recurso solicitado en el servidor.',
@@ -662,7 +662,7 @@
       shootMode = false;
       shootCells.forEach(({cell, handler}) => {
         cell.classList.remove('movible');
-        cell.removeEventListener('click', handler);
+        cell.removeEventListener('click', handler, true);
       });
       shootCells = [];
       if (btnDisparar) {
@@ -711,14 +711,27 @@
           }
 
           const celdasDisponibles = disponibles.celdas || [];
+          const clavesDisparables = new Set(
+            celdasDisponibles.map(({x, y}) => `${x},${y}`)
+          );
 
-          celdasDisponibles.forEach(({x, y}) => {
-            const celdaData = celdas.find(c => c.col === x && c.fila === y);
-            if (!celdaData) return;
+          celdas.forEach(({ celda, col, fila }) => {
+            const clave = `${col},${fila}`;
+            const esCeldaDisparable = clavesDisparables.has(clave);
 
-            const celda = celdaData.celda;
-            celda.classList.add('movible');
-            const handler = async () => {
+            if (esCeldaDisparable) {
+              celda.classList.add('movible');
+            }
+
+            const handler = async (event) => {
+              event.preventDefault();
+              event.stopImmediatePropagation();
+
+              if (!esCeldaDisparable) {
+                alert('NO_HAY_OBJETIVO_ENEMIGO');
+                return;
+              }
+
               try {
                 const playerIdShootActual = getPlayerIdActual();
                 if (!playerIdShootActual) {
@@ -727,7 +740,7 @@
                 }
 
                 const data = await apiRequest(
-                  `/shoot2?playerId=${encodeURIComponent(playerIdShootActual)}&fila=${y}&col=${x}`,
+                  `/shoot2?playerId=${encodeURIComponent(playerIdShootActual)}&fila=${fila}&col=${col}`,
                   'POST'
                 );
 
@@ -800,7 +813,7 @@
               }
             };
 
-            celda.addEventListener('click', handler);
+            celda.addEventListener('click', handler, true);
             shootCells.push({ cell: celda, handler });
           });
         } catch (error) {
