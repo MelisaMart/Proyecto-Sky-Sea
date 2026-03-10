@@ -174,11 +174,26 @@ public class ServicioPartida {
         Jugador nuevo = new Jugador(nombreLimpio);
 
         String equipoNormalizado = equipoDeseado == null ? "" : equipoDeseado.trim().toUpperCase();
+        String reservaPrimerJugador = partida.getPrimerJugadorId();
+        String tokenReserva = "RESERVA_NOMBRE:" + nombreLimpio.toUpperCase();
 
         // Primer jugador: debe elegir equipo explícitamente
         if (partida.getJugador1() == null && partida.getJugador2() == null) {
             if (equipoNormalizado.isEmpty()) {
+                if (reservaPrimerJugador != null && !reservaPrimerJugador.isBlank() && !reservaPrimerJugador.equals(tokenReserva)) {
+                    return new JoinResponse(partida.getIdPartida(), null, nombreLimpio, "ESPERANDO_SELECCION_EQUIPO", null, 0);
+                }
+
+                if (reservaPrimerJugador == null || reservaPrimerJugador.isBlank()) {
+                    partida.setPrimerJugadorId(tokenReserva);
+                    dao.save(partida);
+                }
+
                 return new JoinResponse(partida.getIdPartida(), null, nombreLimpio, "NECESITA_EQUIPO", null, 0);
+            }
+
+            if (reservaPrimerJugador != null && !reservaPrimerJugador.isBlank() && !reservaPrimerJugador.equals(tokenReserva)) {
+                return new JoinResponse(partida.getIdPartida(), null, nombreLimpio, "ESPERANDO_SELECCION_EQUIPO", null, 0);
             }
 
             if (!"NAVAL".equals(equipoNormalizado) && !"AEREO".equals(equipoNormalizado)) {

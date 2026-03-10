@@ -175,6 +175,7 @@
       OCUPADO: 'Ya hay dos jugadores en partida. Esperá a que finalice para ingresar.',
       NOMBRE_INVALIDO: 'El nombre ingresado no es válido. Usá al menos 3 caracteres sin símbolos.',
       USUARIO_EN_PARTIDA_ACTIVA: 'este usuario ya esta en una partida, ingrrese otro',
+      ESPERANDO_SELECCION_EQUIPO: 'El primer jugador está eligiendo equipo. Intentá de nuevo en unos segundos.',
       EQUIPO_INVALIDO: 'El equipo seleccionado no es válido. Elegí Naval o Aéreo.',
       PARTIDA_NO_ENCONTRADA: 'No se encontró la partida seleccionada.',
       PARTIDA_NO_REANUDABLE: 'La partida seleccionada ya no es reanudable.',
@@ -474,6 +475,12 @@
         return;
       }
 
+      if (join.estadoPartida === 'ESPERANDO_SELECCION_EQUIPO') {
+        alert('ESPERANDO_SELECCION_EQUIPO');
+        nombrePendiente = '';
+        return;
+      }
+
       if (join.estadoPartida === 'NOMBRE_INVALIDO') {
         alert('El nombre ingresado no es válido.');
         return;
@@ -570,6 +577,12 @@
       abrirModalPartidasReanudables();
     }
 
+    async function tienePartidasReanudables(nombre) {
+      const data = await apiRequest(`/resumableMatches?nombre=${encodeURIComponent(nombre)}`);
+      const partidas = Array.isArray(data.partidas) ? data.partidas : [];
+      return partidas.length > 0;
+    }
+
     // Verificar que todos los elementos existan antes de inicializar
     if (btnStart && modalNombre && inputNombre && aceptarNombre && cancelarNombre) {
       btnStart.addEventListener('click', function () {
@@ -625,7 +638,13 @@
         try {
           nombrePendiente = nombre;
           cerrarModalNombre();
-          abrirModalModoInicio();
+
+          const hayPartidasReanudables = await tienePartidasReanudables(nombre);
+          if (hayPartidasReanudables) {
+            abrirModalModoInicio();
+          } else {
+            await iniciarPartidaNueva();
+          }
         } catch (error) {
           alert(`No se pudo conectar con el servidor: ${error.message}`);
         } finally {
