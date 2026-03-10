@@ -543,4 +543,33 @@ public class ServicioPartidaShootTest {
         assertEquals(Equipo.AEREO, actualizada.getTurnoDe());
         assertEquals(turnoAntes + 1, actualizada.getNumeroTurno());
     }
+
+    @Test
+    void testNoPermiteCambiarDronDespuesDeMoverEnMismoTurno() {
+        Partida partida = dao.loadActiva();
+        Jugador jug1 = partida.getJugador1();
+
+        partida.setTurnoDe(Equipo.NAVAL);
+        assertTrue(jug1.getDrones().size() >= 2);
+
+        Dron dronA = jug1.getDrones().get(0);
+        Dron dronB = jug1.getDrones().get(1);
+
+        ServicioPartida.TemplateResponse seleccionarA = servicio.selectDrone(jug1.getId(), dronA.getId());
+        assertTrue(seleccionarA.ok);
+
+        ServicioPartida.AvailableMovesResponse moves = servicio.obtenerMovimientosDisponibles(jug1.getId());
+        assertTrue(moves.ok);
+        assertFalse(moves.celdas.isEmpty());
+
+        int filaMove = moves.celdas.get(0).y;
+        int colMove = moves.celdas.get(0).x;
+        ServicioPartida.TemplateResponse mover = servicio.moverDron(jug1.getId(), filaMove, colMove);
+        assertTrue(mover.ok);
+
+        ServicioPartida.TemplateResponse cambiarADronB = servicio.selectDrone(jug1.getId(), dronB.getId());
+        assertFalse(cambiarADronB.ok);
+        assertEquals("ACCION_YA_REALIZADA", cambiarADronB.estado);
+        assertEquals(dronA.getId(), jug1.getDronSeleccionado());
+    }
 }

@@ -520,6 +520,15 @@ public class ServicioPartida {
         }
 
         String dronActual = jugador.getDronSeleccionado();
+
+        // Si ya realizó una acción en este turno, no puede cambiar a otro dron.
+        if (jugador.getAccionTurno() != Jugador.AccionTurno.NINGUNA) {
+            if (dronActual != null && dronActual.equals(dronId)) {
+                return new TemplateResponse(true, "OK", jugador.getEquipo().name(), dronId);
+            }
+            return new TemplateResponse(false, "ACCION_YA_REALIZADA", null, null);
+        }
+
         if (dronActual != null && dronActual.equals(dronId)) {
             return new TemplateResponse(true, "OK", jugador.getEquipo().name(), dronId);
         }
