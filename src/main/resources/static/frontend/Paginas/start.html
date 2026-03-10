@@ -202,6 +202,18 @@
       window.location.href = '/frontend/Index.html';
     }
 
+    async function salirAlInicioDesdeEspera() {
+      const playerIdActual = getPlayerIdActual();
+      if (playerIdActual) {
+        try {
+          await apiRequest(`/leaveWaiting?playerId=${encodeURIComponent(playerIdActual)}`, 'POST');
+        } catch (_) {
+          // Si falla, igual salimos al menú para no bloquear al usuario en la UI.
+        }
+      }
+      salirAlInicio();
+    }
+
     function mostrarModalEsperaRival() {
       const modal = document.getElementById('reanudarEsperaModal');
       if (!modal) return;
@@ -449,7 +461,7 @@
     });
 
     if (reanudarSalirBtn) {
-      reanudarSalirBtn.addEventListener('click', salirAlInicio);
+      reanudarSalirBtn.addEventListener('click', salirAlInicioDesdeEspera);
     }
     let numeroJugadorActual = Number(getSessionValue('numeroJugador'));
     const TIEMPO_TURNO_SEGUNDOS = 30;

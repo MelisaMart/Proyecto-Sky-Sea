@@ -190,10 +190,6 @@
       return text;
     }
 
-    function esUsuarioEnPartidaActivaError(input) {
-      return normalizeErrorInput(input).toUpperCase().includes('USUARIO_EN_PARTIDA_ACTIVA');
-    }
-
     function findErrorCode(text) {
       const matches = text.toUpperCase().match(/[A-Z][A-Z0-9_]{2,}/g);
       if (!matches) return null;
@@ -516,17 +512,7 @@
         return;
       }
 
-      let data;
-      try {
-        data = await apiRequest(`/resumableMatches?nombre=${encodeURIComponent(nombre)}`);
-      } catch (error) {
-        if (esUsuarioEnPartidaActivaError(error?.message)) {
-          alert('USUARIO_EN_PARTIDA_ACTIVA');
-          volverAModalNombreParaReintento();
-          return;
-        }
-        throw error;
-      }
+      const data = await apiRequest(`/resumableMatches?nombre=${encodeURIComponent(nombre)}`);
       const partidas = Array.isArray(data.partidas) ? data.partidas : [];
 
       if (!partidas.length) {
@@ -554,11 +540,6 @@
                 'POST'
               );
               if (!resume.ok) {
-                if (resume.estado === 'USUARIO_EN_PARTIDA_ACTIVA') {
-                  alert('USUARIO_EN_PARTIDA_ACTIVA');
-                  volverAModalNombreParaReintento();
-                  return;
-                }
                 alert(resume.estado || 'No se pudo reanudar la partida.');
                 return;
               }

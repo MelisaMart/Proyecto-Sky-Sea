@@ -112,4 +112,29 @@ class ServicioPartidaConcurrencyTest {
         assertNotNull(nuevoIngreso.playerId);
         assertNotEquals("USUARIO_EN_PARTIDA_ACTIVA", nuevoIngreso.estadoPartida);
     }
+
+    @Test
+    void salirEnEsperaCancelaCupoDelJugador() {
+        ServicioPartida.JoinResponse j1 = servicio.join("SoloEnEspera", "NAVAL");
+        assertNotNull(j1.playerId);
+
+        ServicioPartida.DisconnectResponse salida = servicio.salirAlMenuDesdeEspera(j1.playerId);
+        assertTrue(salida.ok);
+
+        ServicioPartida.JoinResponse nuevo = servicio.join("SoloEnEspera", "AEREO");
+        assertNotNull(nuevo.playerId);
+    }
+
+    @Test
+    void nombreActivoPuedeReanudarSuPartida() {
+        ServicioPartida.JoinResponse j1 = servicio.join("ReanudaActivo", "NAVAL");
+        assertNotNull(j1.playerId);
+
+        var reanudables = servicio.listarPartidasReanudables("ReanudaActivo");
+        assertFalse(reanudables.isEmpty());
+
+        var resume = servicio.reanudarPartida("ReanudaActivo", reanudables.get(0).idPartida);
+        assertTrue(resume.ok);
+        assertEquals("ReanudaActivo", resume.nombre);
+    }
 }

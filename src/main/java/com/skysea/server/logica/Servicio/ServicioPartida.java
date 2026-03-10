@@ -38,10 +38,6 @@ public class ServicioPartida {
             return List.of();
         }
 
-        if (dao.existsNombreEnPartidaActiva(nombreLimpio)) {
-            throw new IllegalArgumentException("USUARIO_EN_PARTIDA_ACTIVA");
-        }
-
         return dao.findReanudablesByNombre(nombreLimpio).stream()
                 .map(info -> new PartidaReanudableResponse(
                         info.idPartida,
@@ -62,10 +58,6 @@ public class ServicioPartida {
         }
         if (idPartidaLimpio.isEmpty()) {
             return new ResumePartidaResponse(false, "PARTIDA_INVALIDA", null, null, null, null, null, 0, false);
-        }
-
-        if (dao.existsNombreEnPartidaActiva(nombreLimpio)) {
-            return new ResumePartidaResponse(false, "USUARIO_EN_PARTIDA_ACTIVA", null, null, null, null, null, 0, false);
         }
 
         Optional<Partida> partidaOpt = dao.loadById(idPartidaLimpio);
@@ -345,6 +337,36 @@ public class ServicioPartida {
             partida.setEstado(EstadoPartida.ESPERANDO_RIVAL);
         }
 
+        dao.save(partida);
+        return new DisconnectResponse(true, "OK", partida.getEstado().name(), partida.isReanudable());
+    }
+
+    public synchronized DisconnectResponse salirAlMenuDesdeEspera(String playerId) {
+        Partida partida = dao.loadActiva();
+        Jugador jugador = partida.buscarJugadorPorId(playerId);
+        if (jugador == null) {
+            return new DisconnectResponse(false, "PLAYER_NO_ENCONTRADO", null, false);
+        }
+
+        if (partida.getEstado() != EstadoPartida.ESPERANDO_RIVAL) {
+            return new DisconnectResponse(false, "PARTIDA_NO_ESPERA_RIVAL", partida.getEstado().name(), partida.isReanudable());
+        }
+
+        if (partida.getJugador1() != null && playerId.equals(partida.getJugador1().getId())) {
+            partida.clearJugador1();
+        } else if (partida.getJugador2() != null && playerId.equals(partida.getJugador2().getId())) {
+            partida.clearJugador2();
+        }
+
+        Jugador restante = partida.getJugador1() != null ? partida.getJugador1() : partida.getJugador2();
+        if (restante == null) {
+            dao.reset();
+            return new DisconnectResponse(true, "PARTIDA_CANCELADA", EstadoPartida.ESPERANDO_RIVAL.name(), true);
+        }
+
+        restante.setConectado(true);
+        partida.setPrimerJugadorId(restante.getId());
+        partida.setEstado(EstadoPartida.ESPERANDO_RIVAL);
         dao.save(partida);
         return new DisconnectResponse(true, "OK", partida.getEstado().name(), partida.isReanudable());
     }

@@ -163,6 +163,21 @@ public class GameController {
         }
     }
 
+    @PostMapping("/leaveWaiting")
+    public Object salirDesdeEspera(@RequestParam String playerId) {
+        try {
+            ServicioPartida.DisconnectResponse r = servicioPartida.salirAlMenuDesdeEspera(playerId);
+            java.util.Map<String, Object> out = new java.util.HashMap<>();
+            out.put("ok", r.ok);
+            out.put("estado", r.estado);
+            out.put("estadoPartida", r.estadoPartida);
+            out.put("isReanudable", r.isReanudable);
+            return out;
+        } catch (Exception e) {
+            return java.util.Map.of("error", e.getMessage());
+        }
+    }
+
     @PostMapping("/template")
     public Object seleccionarPlantilla(@RequestParam String playerId,
                                        @RequestParam String plantilla) {
