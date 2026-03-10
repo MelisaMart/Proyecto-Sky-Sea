@@ -134,6 +134,17 @@
     </div>
   </div>
 
+  <div id="abandonarConfirmModal" class="modal-overlay" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal-box modal-espera-rival">
+      <p class="modal-titulo">CONFIRMAR ABANDONO</p>
+      <p class="espera-rival-texto">¿Seguro que querés abandonar la partida? Vas a perder automáticamente.</p>
+      <div class="modal-actions">
+        <button id="abandonarConfirmAceptar" class="game-btn" type="button">Aceptar</button>
+        <button id="abandonarConfirmCancelar" class="game-btn" type="button">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const API_BASE = (window.location.protocol === 'file:')
       ? 'http://localhost:8080'
@@ -226,6 +237,37 @@
       if (!modal) return;
       modal.setAttribute('aria-hidden', 'true');
       modal.classList.remove('activo');
+    }
+
+    let resolverConfirmacionAbandono = null;
+
+    function cerrarModalConfirmacionAbandono(confirmado) {
+      const modal = document.getElementById('abandonarConfirmModal');
+      if (modal) {
+        modal.setAttribute('aria-hidden', 'true');
+        modal.classList.remove('activo');
+      }
+
+      if (resolverConfirmacionAbandono) {
+        const resolver = resolverConfirmacionAbandono;
+        resolverConfirmacionAbandono = null;
+        resolver(Boolean(confirmado));
+      }
+    }
+
+    function pedirConfirmacionAbandono() {
+      const modal = document.getElementById('abandonarConfirmModal');
+      const btnAceptar = document.getElementById('abandonarConfirmAceptar');
+      if (!modal || !btnAceptar) {
+        return Promise.resolve(window.confirm('¿Seguro que querés abandonar la partida? Vas a perder automáticamente.'));
+      }
+
+      return new Promise((resolve) => {
+        resolverConfirmacionAbandono = resolve;
+        modal.setAttribute('aria-hidden', 'false');
+        modal.classList.add('activo');
+        btnAceptar.focus();
+      });
     }
 
     function normalizeErrorInput(input) {
@@ -438,6 +480,9 @@
     const errorModal = document.getElementById('errorModal');
     const errorOk = document.getElementById('errorOk');
     const reanudarSalirBtn = document.getElementById('reanudarSalirBtn');
+    const abandonarConfirmModal = document.getElementById('abandonarConfirmModal');
+    const abandonarConfirmAceptar = document.getElementById('abandonarConfirmAceptar');
+    const abandonarConfirmCancelar = document.getElementById('abandonarConfirmCancelar');
 
     if (errorOk) {
       errorOk.textContent = 'OK';
@@ -463,6 +508,27 @@
     if (reanudarSalirBtn) {
       reanudarSalirBtn.addEventListener('click', salirAlInicioDesdeEspera);
     }
+    if (abandonarConfirmAceptar) {
+      abandonarConfirmAceptar.addEventListener('click', () => cerrarModalConfirmacionAbandono(true));
+    }
+    if (abandonarConfirmCancelar) {
+      abandonarConfirmCancelar.addEventListener('click', () => cerrarModalConfirmacionAbandono(false));
+    }
+    if (abandonarConfirmModal) {
+      abandonarConfirmModal.addEventListener('click', (event) => {
+        if (event.target === abandonarConfirmModal) {
+          cerrarModalConfirmacionAbandono(false);
+        }
+      });
+    }
+    document.addEventListener('keydown', (event) => {
+      if (
+        event.key === 'Escape'
+        && abandonarConfirmModal?.getAttribute('aria-hidden') === 'false'
+      ) {
+        cerrarModalConfirmacionAbandono(false);
+      }
+    });
     let numeroJugadorActual = Number(getSessionValue('numeroJugador'));
     const TIEMPO_TURNO_SEGUNDOS = 30;
     let duracionTurnoSegundos = TIEMPO_TURNO_SEGUNDOS;
@@ -1149,7 +1215,7 @@
         return;
       }
 
-      const confirmado = window.confirm('¿Seguro que querés abandonar la partida? Vas a perder automáticamente.');
+      const confirmado = await pedirConfirmacionAbandono();
       if (!confirmado) {
         return;
       }
