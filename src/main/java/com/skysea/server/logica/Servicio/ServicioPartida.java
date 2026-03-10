@@ -38,6 +38,10 @@ public class ServicioPartida {
             return List.of();
         }
 
+        if (debeForzarIngresoAPartidaActiva(nombreLimpio)) {
+            return List.of();
+        }
+
         return dao.findReanudablesByNombre(nombreLimpio).stream()
                 .map(info -> new PartidaReanudableResponse(
                         info.idPartida,
@@ -58,6 +62,10 @@ public class ServicioPartida {
         }
         if (idPartidaLimpio.isEmpty()) {
             return new ResumePartidaResponse(false, "PARTIDA_INVALIDA", null, null, null, null, null, 0, false);
+        }
+
+        if (debeForzarIngresoAPartidaActiva(nombreLimpio)) {
+            return new ResumePartidaResponse(false, "DEBE_UNIRSE_PARTIDA_ACTIVA", null, null, nombreLimpio, null, null, 0, false);
         }
 
         Optional<Partida> partidaOpt = dao.loadById(idPartidaLimpio);
@@ -110,6 +118,39 @@ public class ServicioPartida {
                 numeroJugador,
                 !rivalConectado
         );
+    }
+
+    private boolean debeForzarIngresoAPartidaActiva(String nombreLimpio) {
+        Partida activa = dao.loadActiva();
+        if (activa == null) {
+            return false;
+        }
+
+        if (activa.getEstado() != EstadoPartida.ESPERANDO_RIVAL) {
+            return false;
+        }
+
+        if (activa.getJugador1() != null && activa.getJugador2() != null) {
+            return false;
+        }
+
+        if (activa.buscarJugadorPorNombre(nombreLimpio) != null) {
+            return false;
+        }
+
+        String reserva = activa.getPrimerJugadorId();
+        if (reserva != null && reserva.startsWith("RESERVA_NOMBRE:")) {
+            String nombreReservado = reserva.substring("RESERVA_NOMBRE:".length());
+            return !nombreReservado.equalsIgnoreCase(nombreLimpio);
+        }
+
+        boolean hayUnJugadorEnEspera = activa.getJugador1() != null || activa.getJugador2() != null;
+        if (!hayUnJugadorEnEspera) {
+            return false;
+        }
+
+        // Si existe una partida activa esperando rival, no se permite abrir otra por reanudación.
+        return true;
     }
 
     public synchronized JoinResponse join(String nombre, String equipoDeseado) {
