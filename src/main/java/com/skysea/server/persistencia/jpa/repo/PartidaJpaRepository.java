@@ -33,6 +33,7 @@ public interface PartidaJpaRepository extends JpaRepository<PartidaEntity, Strin
             join p.jugadores j
             where upper(j.nombre) = upper(:nombre)
               and p.isReanudable = true
+              and p.estado = com.skysea.server.logica.model.EstadoPartida.ESPERANDO_RIVAL
             order by p.fechaCreacion desc
             """)
     List<PartidaReanudableProjection> findReanudablesByNombre(@Param("nombre") String nombre);

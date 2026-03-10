@@ -43,6 +43,7 @@ public class ServicioPartida {
         }
 
         return dao.findReanudablesByNombre(nombreLimpio).stream()
+            .filter(info -> EstadoPartida.ESPERANDO_RIVAL.name().equals(info.estadoPartida))
                 .map(info -> new PartidaReanudableResponse(
                         info.idPartida,
                         info.estadoPartida,

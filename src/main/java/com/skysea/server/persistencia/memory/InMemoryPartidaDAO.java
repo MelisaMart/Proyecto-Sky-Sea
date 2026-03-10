@@ -33,6 +33,9 @@ public class InMemoryPartidaDAO implements IPartidaDAO {
         if (partidaActiva == null || !partidaActiva.isReanudable()) {
             return List.of();
         }
+        if (partidaActiva.getEstado() != EstadoPartida.ESPERANDO_RIVAL) {
+            return List.of();
+        }
         boolean esJugador = partidaActiva.buscarJugadorPorNombre(nombreJugador) != null;
         if (!esJugador) {
             return List.of();
