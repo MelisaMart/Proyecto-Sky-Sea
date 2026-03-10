@@ -1794,10 +1794,17 @@
       }
 
       if (btnMover) {
-        btnMover.addEventListener('click', enterMoveMode);
+        btnMover.addEventListener('click', () => {
+          // Evita que handlers de disparo en captura bloqueen el modo mover.
+          exitShootMode();
+          enterMoveMode();
+        });
       }
       if (btnDisparar) {
-        btnDisparar.addEventListener('click', enterShootMode);
+        btnDisparar.addEventListener('click', () => {
+          exitMoveMode();
+          enterShootMode();
+        });
       }
       if (btnAbandonar) {
         btnAbandonar.addEventListener('click', abandonarPartida);
