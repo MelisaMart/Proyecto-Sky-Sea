@@ -738,8 +738,14 @@ public class ServicioPartida {
                 int x = origenX + dx;
                 int y = origenY + dy;
                 if (!estaEnTablero(x, y)) continue;
-                if (celdaOcupadaPorDron(partida, x, y)) continue;
                 if (celdaOcupadaPorPorta(partida, x, y)) continue;
+
+                // En drones navales (MISIL) se marca también la celda ocupada por dron enemigo
+                // aunque no sea visible, para permitir la penalización por intento de movimiento.
+                if (celdaOcupadaPorDronPropio(jugador, x, y)) continue;
+                boolean ocupadaPorEnemigo = celdaOcupadaPorDronEnemigo(partida, jugador, x, y);
+                if (ocupadaPorEnemigo && dron.getTipoProyectil() != TipoProyectil.MISIL) continue;
+
                 celdas.add(new CeldaView(x, y));
             }
         }
@@ -901,6 +907,32 @@ public class ServicioPartida {
                 if (d.estaVivo() && d.getPosicion().getX() == x && d.getPosicion().getY() == y) {
                     return true;
                 }
+            }
+        }
+        return false;
+    }
+
+    private boolean celdaOcupadaPorDronPropio(Jugador jugador, int x, int y) {
+        if (jugador == null) return false;
+        for (Dron d : jugador.getDrones()) {
+            if (d.estaVivo() && d.getPosicion().getX() == x && d.getPosicion().getY() == y) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean celdaOcupadaPorDronEnemigo(Partida partida, Jugador jugadorActual, int x, int y) {
+        if (partida == null || jugadorActual == null) return false;
+
+        Jugador enemigo = partida.getJugador1() != null && partida.getJugador1().getId().equals(jugadorActual.getId())
+                ? partida.getJugador2()
+                : partida.getJugador1();
+        if (enemigo == null) return false;
+
+        for (Dron d : enemigo.getDrones()) {
+            if (d.estaVivo() && d.getPosicion().getX() == x && d.getPosicion().getY() == y) {
+                return true;
             }
         }
         return false;

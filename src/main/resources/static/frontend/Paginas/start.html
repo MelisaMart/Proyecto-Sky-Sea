@@ -952,6 +952,13 @@
                   if (btnMover) btnMover.disabled = true;
                   exitMoveMode();
                 } else {
+                  if (data.estado === 'CELDA_OCUPADA') {
+                    exitMoveMode();
+                    limpiarSeleccionLocal();
+                    await pasarTurno();
+                    showError('Perdió su turno: casilla ocupada por dron enemigo');
+                    return;
+                  }
                   alert('Movimiento inválido: ' + (data.estado || 'ERROR'));
                 }
               } catch (err) {
