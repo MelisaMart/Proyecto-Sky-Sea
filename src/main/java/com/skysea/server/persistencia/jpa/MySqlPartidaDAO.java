@@ -63,6 +63,15 @@ public class MySqlPartidaDAO implements IPartidaDAO {
 
     @Override
     @Transactional
+    public synchronized void desactivarReanudablesByNombre(String nombreJugador) {
+        if (nombreJugador == null || nombreJugador.isBlank()) {
+            return;
+        }
+        partidaRepository.desactivarReanudablesByNombre(nombreJugador.trim());
+    }
+
+    @Override
+    @Transactional
     public synchronized boolean existsNombreEnPartidaActiva(String nombreJugador) {
         if (nombreJugador == null || nombreJugador.isBlank()) {
             return false;

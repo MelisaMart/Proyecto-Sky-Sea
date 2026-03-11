@@ -178,6 +178,22 @@ public class GameController {
         }
     }
 
+    @PostMapping("/cancelSetup")
+    public Object cancelarSetup(@RequestParam(required = false) String nombre,
+                                @RequestParam(required = false) String playerId) {
+        try {
+            ServicioPartida.DisconnectResponse r = servicioPartida.cancelarInicio(nombre, playerId);
+            java.util.Map<String, Object> out = new java.util.HashMap<>();
+            out.put("ok", r.ok);
+            out.put("estado", r.estado);
+            out.put("estadoPartida", r.estadoPartida);
+            out.put("isReanudable", r.isReanudable);
+            return out;
+        } catch (Exception e) {
+            return java.util.Map.of("error", e.getMessage());
+        }
+    }
+
     @PostMapping("/template")
     public Object seleccionarPlantilla(@RequestParam String playerId,
                                        @RequestParam String plantilla) {

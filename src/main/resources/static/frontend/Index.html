@@ -309,6 +309,26 @@
       removeSessionValue('origenReanudacion');
     }
 
+    async function cancelarSetupYVolverInicio() {
+      const playerId = getSessionValue('playerId') || '';
+      const nombre = (nombrePendiente || getSessionValue('nombreUsuario') || '').trim();
+      const query = new URLSearchParams();
+
+      if (playerId) query.set('playerId', playerId);
+      if (nombre) query.set('nombre', nombre);
+
+      try {
+        await apiRequest(`/cancelSetup?${query.toString()}`, 'POST');
+      } catch (_) {
+        // Si falla backend, igual volvemos al inicio para no bloquear al jugador.
+      }
+
+      detenerTimerEstrategia();
+      nombrePendiente = '';
+      clearSession();
+      window.location.href = '/frontend/Index.html';
+    }
+
     let nombrePendiente = '';
     let estrategiaTimerId = null;
     let estrategiaSegundosRestantes = 15;
@@ -784,19 +804,19 @@
       }
 
       // Cerrar el modal al pulsar cancelar
-      cancelarEquipo.addEventListener('click', cerrarModalEquipo);
+      cancelarEquipo.addEventListener('click', cancelarSetupYVolverInicio);
 
       // Cerrar el modal al hacer clic fuera de la caja
       modalEquipo.addEventListener('click', (evento) => {
         if (evento.target === modalEquipo) {
-          cerrarModalEquipo();
+          cancelarSetupYVolverInicio();
         }
       });
 
       // Cerrar el modal con la tecla Escape
       document.addEventListener('keydown', (evento) => {
         if (evento.key === 'Escape' && modalEquipo.getAttribute('aria-hidden') === 'false') {
-          cerrarModalEquipo();
+          cancelarSetupYVolverInicio();
         }
       });
 
@@ -819,25 +839,17 @@
     const cancelarEstrategiaNaval = document.getElementById('cancelarEstrategiaNaval');
 
     if (modalEstrategiaNaval && btnEstratNaval1 && btnEstratNaval2 && btnEstratNaval3 && cancelarEstrategiaNaval) {
-      function cerrarModalEstrategiaNaval() {
-        detenerTimerEstrategia();
-        modalEstrategiaNaval.setAttribute('aria-hidden', 'true');
-        modalEstrategiaNaval.classList.remove('activo');
-        modalEquipo.setAttribute('aria-hidden', 'false');
-        modalEquipo.classList.add('activo');
-      }
-
-      cancelarEstrategiaNaval.addEventListener('click', cerrarModalEstrategiaNaval);
+      cancelarEstrategiaNaval.addEventListener('click', cancelarSetupYVolverInicio);
 
       modalEstrategiaNaval.addEventListener('click', (evento) => {
         if (evento.target === modalEstrategiaNaval) {
-          cerrarModalEstrategiaNaval();
+          cancelarSetupYVolverInicio();
         }
       });
 
       document.addEventListener('keydown', (evento) => {
         if (evento.key === 'Escape' && modalEstrategiaNaval.getAttribute('aria-hidden') === 'false') {
-          cerrarModalEstrategiaNaval();
+          cancelarSetupYVolverInicio();
         }
       });
 
@@ -866,25 +878,17 @@
     const cancelarEstrategiaAereo = document.getElementById('cancelarEstrategiaAereo');
 
     if (modalEstrategiaAereo && btnEstratAereo1 && btnEstratAereo2 && btnEstratAereo3 && cancelarEstrategiaAereo) {
-      function cerrarModalEstrategiaAereo() {
-        detenerTimerEstrategia();
-        modalEstrategiaAereo.setAttribute('aria-hidden', 'true');
-        modalEstrategiaAereo.classList.remove('activo');
-        modalEquipo.setAttribute('aria-hidden', 'false');
-        modalEquipo.classList.add('activo');
-      }
-
-      cancelarEstrategiaAereo.addEventListener('click', cerrarModalEstrategiaAereo);
+      cancelarEstrategiaAereo.addEventListener('click', cancelarSetupYVolverInicio);
 
       modalEstrategiaAereo.addEventListener('click', (evento) => {
         if (evento.target === modalEstrategiaAereo) {
-          cerrarModalEstrategiaAereo();
+          cancelarSetupYVolverInicio();
         }
       });
 
       document.addEventListener('keydown', (evento) => {
         if (evento.key === 'Escape' && modalEstrategiaAereo.getAttribute('aria-hidden') === 'false') {
-          cerrarModalEstrategiaAereo();
+          cancelarSetupYVolverInicio();
         }
       });
 

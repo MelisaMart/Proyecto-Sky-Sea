@@ -423,6 +423,62 @@ public class ServicioPartida {
         return new DisconnectResponse(true, "PARTIDA_FINALIZADA", EstadoPartida.FINALIZADA.name(), false);
     }
 
+    public synchronized DisconnectResponse cancelarInicio(String nombre, String playerId) {
+        Partida partida = dao.loadActiva();
+        String nombreObjetivo = null;
+
+        if (partida.getEstado() == EstadoPartida.FINALIZADA) {
+            String nombreLimpio = nombre == null ? "" : nombre.trim();
+            if (!nombreLimpio.isEmpty()) {
+                dao.desactivarReanudablesByNombre(nombreLimpio);
+            }
+            return new DisconnectResponse(true, "PARTIDA_FINALIZADA", EstadoPartida.FINALIZADA.name(), false);
+        }
+
+        Jugador jugador = null;
+        if (playerId != null && !playerId.isBlank()) {
+            jugador = partida.buscarJugadorPorId(playerId.trim());
+        }
+
+        if (jugador != null) {
+            nombreObjetivo = jugador.getNombre();
+            Jugador rival = partida.getJugador1() != null && playerId.equals(partida.getJugador1().getId())
+                    ? partida.getJugador2()
+                    : partida.getJugador1();
+            Equipo equipoGanador = rival != null ? rival.getEquipo() : null;
+
+            finalizarPartida(partida, equipoGanador, MotivoFinPartida.ABANDONO);
+            dao.save(partida);
+            if (nombreObjetivo != null && !nombreObjetivo.isBlank()) {
+                dao.desactivarReanudablesByNombre(nombreObjetivo);
+            }
+            dao.reset();
+
+            return new DisconnectResponse(true, "PARTIDA_FINALIZADA", EstadoPartida.FINALIZADA.name(), false);
+        }
+
+        String nombreLimpio = nombre == null ? "" : nombre.trim();
+        if (!nombreLimpio.isEmpty()) {
+            nombreObjetivo = nombreLimpio;
+            String reserva = partida.getPrimerJugadorId();
+            String tokenReserva = "RESERVA_NOMBRE:" + nombreLimpio.toUpperCase();
+            if (reserva != null && reserva.equals(tokenReserva)) {
+                finalizarPartida(partida, null, MotivoFinPartida.ABANDONO);
+                dao.save(partida);
+                dao.desactivarReanudablesByNombre(nombreObjetivo);
+                dao.reset();
+
+                return new DisconnectResponse(true, "PARTIDA_FINALIZADA", EstadoPartida.FINALIZADA.name(), false);
+            }
+        }
+
+        if (nombreObjetivo != null && !nombreObjetivo.isBlank()) {
+            dao.desactivarReanudablesByNombre(nombreObjetivo);
+        }
+
+        return new DisconnectResponse(false, "PARTIDA_NO_CANCELABLE", partida.getEstado().name(), partida.isReanudable());
+    }
+
     // Clase interna simple para que el Service no dependa del DTO de presentación
     public static class JoinResponse {
         public final String idPartida;

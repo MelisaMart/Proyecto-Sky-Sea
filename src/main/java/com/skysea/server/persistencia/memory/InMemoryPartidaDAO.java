@@ -50,6 +50,16 @@ public class InMemoryPartidaDAO implements IPartidaDAO {
     }
 
     @Override
+    public synchronized void desactivarReanudablesByNombre(String nombreJugador) {
+        if (partidaActiva == null || nombreJugador == null || nombreJugador.isBlank()) {
+            return;
+        }
+        if (partidaActiva.buscarJugadorPorNombre(nombreJugador.trim()) != null) {
+            partidaActiva.setReanudable(false);
+        }
+    }
+
+    @Override
     public synchronized boolean existsNombreEnPartidaActiva(String nombreJugador) {
         if (partidaActiva == null || nombreJugador == null || nombreJugador.isBlank()) {
             return false;

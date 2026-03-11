@@ -38,6 +38,20 @@ public interface PartidaJpaRepository extends JpaRepository<PartidaEntity, Strin
             """)
     List<PartidaReanudableProjection> findReanudablesByNombre(@Param("nombre") String nombre);
 
+    @Modifying
+    @Query("""
+            update PartidaEntity p
+               set p.isReanudable = false
+             where p.isReanudable = true
+               and exists (
+                    select 1
+                      from JugadorEntity j
+                     where j.partida.id = p.id
+                       and upper(j.nombre) = upper(:nombre)
+               )
+            """)
+    int desactivarReanudablesByNombre(@Param("nombre") String nombre);
+
     @Query("""
             select case when count(j) > 0 then true else false end
             from JugadorEntity j
