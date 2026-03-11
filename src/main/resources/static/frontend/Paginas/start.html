@@ -794,6 +794,12 @@
               event.stopImmediatePropagation();
 
               if (!esCeldaDisparable) {
+                const equipoCelda = celda.dataset.dronEquipo;
+                const miEquipo = getSessionValue('equipoAsignado');
+                if (equipoCelda && miEquipo && equipoCelda !== miEquipo) {
+                  alert('No se puede. No esta dentro del alcance de disparo');
+                  return;
+                }
                 alert('NO_HAY_OBJETIVO_ENEMIGO');
                 return;
               }
