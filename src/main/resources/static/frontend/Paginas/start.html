@@ -1718,7 +1718,7 @@
 
     function limpiarRenderDronesTablero() {
       celdas.forEach(({ celda }) => {
-        celda.classList.remove('ocupada-dron', 'seleccionado', 'celda-ammo-verde', 'celda-ammo-amarillo', 'celda-ammo-rojo');
+        celda.classList.remove('ocupada-dron', 'dron-enemigo', 'seleccionado', 'celda-ammo-verde', 'celda-ammo-amarillo', 'celda-ammo-rojo');
         delete celda.dataset.dronId;
         celda.querySelectorAll('img.elemento-formacion').forEach((img) => img.remove());
       });
@@ -1776,7 +1776,7 @@
 
       dronesActuales.forEach((renderActual, dronId) => {
         if (dronesObjetivo.has(dronId)) return;
-        renderActual.celda.classList.remove('ocupada-dron', 'seleccionado', 'celda-ammo-verde', 'celda-ammo-amarillo', 'celda-ammo-rojo');
+        renderActual.celda.classList.remove('ocupada-dron', 'dron-enemigo', 'seleccionado', 'celda-ammo-verde', 'celda-ammo-amarillo', 'celda-ammo-rojo');
         delete renderActual.celda.dataset.dronId;
         delete renderActual.celda.dataset.dronEquipo;
         renderActual.celda.querySelectorAll('img.elemento-formacion').forEach((img) => img.remove());
@@ -1791,7 +1791,7 @@
 
         if (renderActual && renderActual.celda !== celdaDestino) {
           const imgExistente = renderActual.celda.querySelector('img.elemento-formacion');
-          renderActual.celda.classList.remove('ocupada-dron', 'seleccionado', 'celda-ammo-verde', 'celda-ammo-amarillo', 'celda-ammo-rojo');
+          renderActual.celda.classList.remove('ocupada-dron', 'dron-enemigo', 'seleccionado', 'celda-ammo-verde', 'celda-ammo-amarillo', 'celda-ammo-rojo');
           delete renderActual.celda.dataset.dronId;
           if (imgExistente) {
             celdaDestino.appendChild(imgExistente);
@@ -1799,7 +1799,10 @@
         }
 
         celdaDestino.classList.add('ocupada-dron');
-        celdaDestino.classList.remove('celda-ammo-verde', 'celda-ammo-amarillo', 'celda-ammo-rojo');
+        celdaDestino.classList.remove('dron-enemigo', 'celda-ammo-verde', 'celda-ammo-amarillo', 'celda-ammo-rojo');
+        if (miEquipo && dron.equipo && dron.equipo !== miEquipo) {
+          celdaDestino.classList.add('dron-enemigo');
+        }
         const claseMunicionCelda = obtenerClaseMunicionCelda(dron.type, dron.ammoRemaining);
         if (claseMunicionCelda) {
           celdaDestino.classList.add(claseMunicionCelda);

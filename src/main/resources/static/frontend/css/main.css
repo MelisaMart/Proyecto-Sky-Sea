@@ -770,6 +770,13 @@ main {
     background-color: rgba(232, 15, 15, 0.40);
 }
 
+.celda.ocupada-dron.dron-enemigo,
+.celda.ocupada-dron.dron-enemigo.celda-ammo-verde,
+.celda.ocupada-dron.dron-enemigo.celda-ammo-amarillo,
+.celda.ocupada-dron.dron-enemigo.celda-ammo-rojo {
+    background-color: rgba(19, 21, 19, 0.5);
+}
+
 /* Celda cuyo dron ha sido seleccionado por el jugador */
 .celda.seleccionado {
     outline: 3px solid rgb(108, 240, 75);
